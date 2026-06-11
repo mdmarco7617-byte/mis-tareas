@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="theme-color" content="#1d4ed8"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Daily Tasks"/>
+  <title>Daily Tasks</title>
+  <link rel="manifest" href="manifest.json"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{background:#f0f4f8;font-family:'Inter','Segoe UI',sans-serif;min-height:100vh;display:flex;justify-content:center}
+    input{-webkit-appearance:none}
+    button{-webkit-appearance:none;touch-action:manipulation}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef } = React;
+const FILTERS=["Todas","Pendientes","Completadas"];
+const DAYS_ES=["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
+const MONTHS_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+function toKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function getGreeting(){const h=new Date().getHours();if(h<12)return{text:"Buenos días",icon:"🌤️"};if(h<19)return{text:"Buenas tardes",icon:"☀️"};return{text:"Buenas noches",icon:"🌙"}}
+function loadTasks(){try{const s=localStorage.getItem("daily_tasks");return s?JSON.parse(s):{}}catch{return{}}}
+function saveTasks(t){try{localStorage.setItem("daily_tasks",JSON.stringify(t))}catch{}}
+
+function App(){
+  const today=new Date();
+  const[selected,setSelected]=useState(new Date(today));
+  const[calMonth,setCalMonth]=useState(new Date(today.getFullYear(),today.getMonth(),1));
+  const[allTasks,setAllTasksRaw]=useState(()=>{
+    const s=loadTasks();
+    return Object.keys(s).length?s:{[toKey(today)]:[
+      {id:1,text:"Revisar correos de la mañana",done:false},
+      {id:2,text:"Reunión de equipo a las 10:00",done:false},
+      {id:3,text:"Enviar informe semanal",done:true}
+    ]};
+  });
+  const[input,setInput]=useState("");
+  const[filter,setFilter]=useState("Todas");
+  const[removing,setRemoving]=useState(null);
+  const[calOpen,setCalOpen]=useState(false);
+  const inputRef=useRef(null);
+  const greeting=getGreeting();
+  const selKey=toKey(selected);
+  const tasks=allTasks[selKey]||[];
+
+  const setAllTasks=u=>setAllTasksRaw(prev=>{const next=typeof u==="function"?u(prev):u;saveTasks(next);return next;});
+  const setTasks=updater=>setAllTasks(prev=>{const cur=prev[selKey]||[];const next=typeof updater==="function"?updater(cur):updater;return{...prev,[selKey]:next}});
+  const addTask=()=>{const t=input.trim();if(!t)return;setTasks(p=>[{id:Date.now(),text:t,done:false},...p]);setInput("");inputRef.current&&inputRef.current.focus()};
+  const toggleTask=id=>setTasks(p=>p.map(t=>t.id===id?{...t,done:!t.done}:t));
+  const removeTask=id=>{setRemoving(id);setTimeout(()=>{setTasks(p=>p.filter(t=>t.id!==id));setRemoving(null)},300)};
+  const handleKey=e=>e.key==="Enter"&&addTask();
+  const filtered=tasks.filter(t=>filter==="Pendientes"?!t.done:filter==="Completadas"?t.done:true);
+  const done=tasks.filter(t=>t.done).length;
+  const progress=tasks.length?Math.round((done/tasks.length)*100):0;
+
+  const firstDow=(d=>d===0?6:d-1)(new Date(calMonth.getFullYear(),calMonth.getMonth(),1).getDay());
+  const daysInMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<firstDow;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++)cells.push(d);
+  while(cells.length%7!==0)cells.push(null);
+
+  const hasP=d=>{if(!d)return false;const k=toKey(new Date(calMonth.getFullYear(),calMonth.getMonth(),d));return(allTasks[k]||[]).some(t=>!t.done)};
+  const hasA=d=>{if(!d)return false;const k=toKey(new Date(calMonth.getFullYear(),calMonth.getMonth(),d));return(allTasks[k]||[]).length>0};
+  const isSel=d=>d&&isSameDay(new Date(calMonth.getFullYear(),calMonth.getMonth(),d),selected);
+  const isToday=d=>d&&isSameDay(new Date(calMonth.getFullYear(),calMonth.getMonth(),d),today);
+  const selLabel=selected.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}).replace(/^\w/,c=>c.toUpperCase());
+
+  return(
+    <div style={{background:"#f0f4f8",minHeight:"100vh",display:"flex",justifyContent:"center"}}>
+    <div style={{width:"100%",maxWidth:"430px",minHeight:"100vh",background:"#f0f4f8",display:"flex",flexDirection:"column",fontFamily:"'Inter','Segoe UI',sans-serif"}}>
+
+      {/* HEADER */}
+      <div style={{background:"linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#3b82f6 100%)",padding:"32px 24px 24px",borderRadius:"0 0 28px 28px",boxShadow:"0 8px 32px rgba(29,78,216,0.25)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+          <span style={{fontSize:16}}>{greeting.icon}</span>
+          <span style={{color:"#bfdbfe",fontSize:12,fontWeight:500}}>{greeting.text}</span>
+        </div>
+        <h1 style={{color:"#fff",fontSize:24,fontWeight:700,margin:"0 0 16px"}}>Mis Tareas</h1>
+
+        <button onClick={()=>setCalOpen(o=>!o)} style={{background:"rgba(255,255,255,0.15)",border:"1.5px solid rgba(255,255,255,0.25)",borderRadius:12,padding:"9px 14px",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <span style={{color:"#fff",fontSize:13,fontWeight:600,textTransform:"capitalize"}}>{selLabel}</span>
+          <span style={{color:"#93c5fd",display:"inline-block",transition:"transform .25s",transform:calOpen?"rotate(90deg)":"rotate(0deg)",fontSize:18}}>›</span>
+        </button>
+
+        <div style={{overflow:"hidden",maxHeight:calOpen?"340px":"0",transition:"max-height .35s"}}>
+          <div style={{background:"rgba(255,255,255,0.1)",borderRadius:14,padding:"12px 10px 10px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1))} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",color:"#e0f2fe",fontSize:18,lineHeight:1}}>‹</button>
+              <span style={{color:"#fff",fontSize:13,fontWeight:700}}>{MONTHS_ES[calMonth.getMonth()]} {calMonth.getFullYear()}</span>
+              <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1))} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",color:"#e0f2fe",fontSize:18,lineHeight:1}}>›</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4}}>
+              {DAYS_ES.map(d=><div key={d} style={{textAlign:"center",color:"#93c5fd",fontSize:10,fontWeight:700,padding:"2px 0"}}>{d}</div>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"2px"}}>
+              {cells.map((d,i)=>(
+                <div key={i} onClick={()=>{if(!d)return;setSelected(new Date(calMonth.getFullYear(),calMonth.getMonth(),d));setFilter("Todas");setCalOpen(false);}}
+                  style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"5px 0",borderRadius:9,cursor:d?"pointer":"default",background:isSel(d)?"#ffffff":isToday(d)?"rgba(255,255,255,0.18)":"transparent"}}>
+                  <span style={{fontSize:13,fontWeight:isSel(d)?700:isToday(d)?600:400,color:isSel(d)?"#1d4ed8":isToday(d)?"#fff":d?"#e0f2fe":"transparent",lineHeight:1}}>{d||""}</span>
+                  <div style={{width:5,height:5,borderRadius:"50%",marginTop:3,background:hasP(d)?"#60a5fa":hasA(d)&&!hasP(d)?"#86efac":"transparent"}}/>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:14,justifyContent:"center",marginTop:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:7,height:7,borderRadius:"50%",background:"#60a5fa"}}/><span style={{color:"#bfdbfe",fontSize:10}}>Pendientes</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:7,height:7,borderRadius:"50%",background:"#86efac"}}/><span style={{color:"#bfdbfe",fontSize:10}}>Completadas</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{background:"rgba(255,255,255,0.13)",borderRadius:12,padding:"11px 14px",marginTop:calOpen?12:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
+            <span style={{color:"#e0f2fe",fontSize:11,fontWeight:500}}>Progreso del día</span>
+            <span style={{color:"#fff",fontSize:11,fontWeight:700}}>{done}/{tasks.length} tareas</span>
+          </div>
+          <div style={{background:"rgba(255,255,255,0.2)",borderRadius:99,height:6,overflow:"hidden"}}>
+            <div style={{height:"100%",borderRadius:99,width:progress+"%",background:"linear-gradient(90deg,#60a5fa,#a5f3fc)",transition:"width .5s"}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* INPUT */}
+      <div style={{padding:"18px 20px 0"}}>
+        <div style={{display:"flex",gap:10,alignItems:"center",background:"#fff",borderRadius:14,padding:"6px 6px 6px 16px",boxShadow:"0 2px 12px rgba(30,58,138,0.08)",border:"1.5px solid #e2e8f0"}}>
+          <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey} placeholder="Añadir tarea para este día..."
+            style={{flex:1,border:"none",outline:"none",fontSize:14,color:"#1e293b",background:"transparent",fontFamily:"inherit"}}/>
+          <button onClick={addTask} style={{background:input.trim()?"linear-gradient(135deg,#1d4ed8,#3b82f6)":"#e2e8f0",border:"none",borderRadius:10,width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",cursor:input.trim()?"pointer":"default",flexShrink:0,fontSize:24,color:input.trim()?"#fff":"#94a3b8",lineHeight:1}}>+</button>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+      <div style={{display:"flex",gap:8,padding:"14px 20px 0"}}>
+        {FILTERS.map(f=><button key={f} onClick={()=>setFilter(f)} style={{padding:"6px 14px",borderRadius:99,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",background:filter===f?"#1d4ed8":"#fff",color:filter===f?"#fff":"#64748b",boxShadow:filter===f?"0 3px 10px rgba(29,78,216,0.25)":"0 1px 4px rgba(0,0,0,0.06)"}}>{f}</button>)}
+      </div>
+
+      {/* TASKS */}
+      <div style={{flex:1,padding:"12px 20px 24px",display:"flex",flexDirection:"column",gap:10}}>
+        {filtered.length===0?(
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,paddingTop:40}}>
+            <span style={{fontSize:48}}>📋</span>
+            <p style={{color:"#94a3b8",fontSize:14,margin:0,fontWeight:500}}>{filter==="Completadas"?"Sin tareas completadas":filter==="Pendientes"?"¡Todo al día! 🎉":"Sin tareas para este día"}</p>
+          </div>
+        ):filtered.map(task=>(
+          <div key={task.id} style={{background:task.done?"#f8faff":"#fff",borderRadius:14,padding:"13px 12px 13px 15px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 10px rgba(30,58,138,0.07)",border:task.done?"1.5px solid #e0f2fe":"1.5px solid #f1f5f9",opacity:removing===task.id?0:1,transform:removing===task.id?"translateX(30px)":"none",transition:"all .3s"}}>
+            <button onClick={()=>toggleTask(task.id)} style={{background:"none",border:"none",padding:0,cursor:"pointer",flexShrink:0,fontSize:22,color:task.done?"#3b82f6":"#cbd5e1"}}>{task.done?"✓":"○"}</button>
+            <span style={{flex:1,fontSize:14,fontWeight:task.done?400:500,color:task.done?"#94a3b8":"#1e293b",textDecoration:task.done?"line-through":"none",lineHeight:1.45}}>{task.text}</span>
+            <button onClick={()=>removeTask(task.id)} style={{background:"none",border:"none",padding:"4px",cursor:"pointer",borderRadius:8,fontSize:15,color:"#fca5a5"}}>🗑</button>
+          </div>
+        ))}
+      </div>
+
+      {tasks.length>0&&<div style={{padding:"0 20px 28px",textAlign:"center"}}><span style={{fontSize:12,color:"#94a3b8"}}>{tasks.filter(t=>!t.done).length} pendientes · {done} completadas</span></div>}
+    </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js")
+      .then(r=>console.log("SW registrado:",r.scope))
+      .catch(e=>console.log("SW error:",e));
+  });
+}
+</script>
+</body>
+</html>
