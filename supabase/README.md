@@ -2,12 +2,31 @@
 
 Contrato de herramientas: [`../docs/asistente-telefonico-ia/CONTRATO_HERRAMIENTAS.md`](../docs/asistente-telefonico-ia/CONTRATO_HERRAMIENTAS.md)
 
+## Proyecto en producción
+
+| | |
+|---|---|
+| Proyecto Supabase | **`verantia-voz`** (ref `cvbmsdliucawhzmzyylp`) — separado del proyecto del chatbot web |
+| Región | eu-central-1 (Frankfurt, UE) |
+| URL de la API | `https://cvbmsdliucawhzmzyylp.supabase.co` |
+| Migraciones aplicadas | 001 esquema · 002 funciones · 003 purga RGPD diaria (pg_cron, 03:15 UTC) · 004 ajustes de los advisors |
+| Datos cargados | Festivos de Valladolid oct-2026 → 2027 y los 2 negocios demo (números ficticios +34983000001/2) |
+
+Quitar los negocios demo cuando entre el primer cliente real:
+```sql
+delete from public.tenants where slug in ('peluqueria-demo', 'restaurante-demo');  -- borra en cascada todo lo suyo
+```
+
+⚠️ En plan gratuito, Supabase **pausa el proyecto tras 7 días sin actividad**. Con un asistente atendiendo llamadas reales eso tiraría el servicio: antes del primer cliente de pago, pasar la organización a plan Pro.
+
 ## Estructura
 
 | Archivo | Qué es |
 |---|---|
 | `migrations/20260927000001_esquema.sql` | Tablas, restricción anti-solape, RLS y permisos |
 | `migrations/20260927000002_funciones_reserva.sql` | Lógica de disponibilidad, reservas, derivación, RGPD y puntos de entrada para n8n |
+| `migrations/20260927000003_purga_automatica.sql` | Tarea diaria pg_cron que aplica la retención RGPD aunque n8n esté caído |
+| `migrations/20260927000004_ajustes_advisors.sql` | search_path fijo e índices sobre claves foráneas (avisos de Supabase) |
 | `seed/festivos_valladolid.sql` | Festivos oct-2026 → 2027 (verificar con BOCyL cada año) |
 | `seed/demo_negocios.sql` | Peluquería y restaurante de ejemplo (**no cargar en producción**) |
 | `tests/` | 77 tests funcionales + prueba de concurrencia real |
@@ -16,10 +35,9 @@ Contrato de herramientas: [`../docs/asistente-telefonico-ia/CONTRATO_HERRAMIENTA
 
 1. Crear el proyecto en **región UE** (Frankfurt o Irlanda).
 2. **SQL Editor** → pegar y ejecutar, en este orden:
-   1. `migrations/20260927000001_esquema.sql`
-   2. `migrations/20260927000002_funciones_reserva.sql`
-   3. `seed/festivos_valladolid.sql`
-   4. (opcional, para pruebas) `seed/demo_negocios.sql`
+   1. Las 4 migraciones de `migrations/`, en orden
+   2. `seed/festivos_valladolid.sql`
+   3. (opcional, para pruebas) `seed/demo_negocios.sql`
 
    Con la CLI de Supabase: copiar la carpeta `migrations` a `supabase/migrations` del proyecto y hacer `supabase db push`.
 3. En n8n, crear la credencial con la **service_role key** (Project Settings → API). **Nunca** la anon key: con la anon key todas las funciones y tablas están bloqueadas a propósito.
@@ -69,3 +87,8 @@ PGHOST=/ruta/socket PGPORT=5432 ./supabase/tests/run_local.sh      # N=50 para m
 | Horario propio del recurso | Sí (p. ej. Marta no trabaja sábados) | No hace falta |
 
 Pendiente para más adelante (no en el MVP): aforo por turno sin mesas, clases grupales con plazas (academias), y unir mesas para grupos grandes (hoy esto se deriva a una persona).
+
+## Avisos de Supabase que quedan (revisados)
+
+- **RLS enabled, no policy** (INFO): intencionado. Sin políticas, anon y authenticated no ven nada; solo service_role (n8n).
+- **Unused index** (INFO): normal en una base de datos recién creada; se usarán con tráfico real.
