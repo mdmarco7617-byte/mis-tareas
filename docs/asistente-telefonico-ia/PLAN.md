@@ -321,14 +321,30 @@ Meta cobra por plantilla enviada, según categoría y país. Para España, la pl
 | Número español (desvío) | 1–5 €/mes |
 | Email (Brevo/Resend) | ~0 en este volumen |
 
-**Ejemplos recalculados (llamada media 2,5 min, confirmación por WhatsApp):**
-| Negocio | Llamadas/mes | Minutos | Coste voz (lean) | + número + WhatsApp/SMS | **Coste total** |
-|---|---|---|---|---|---|
-| Peluquería pequeña | 120 | 300 | 24–30 € | ~6 € | **~30–36 €** |
-| Centro de estética | 250 | 625 | 50–63 € | ~10 € | **~60–73 €** |
-| Restaurante con reservas | 500 | 1.250 | 100–125 € | ~20 € | **~120–145 €** |
+### 9.2 bis — De dónde salen las cifras de llamadas/mes (nota de metodología)
 
-Con la configuración lean, tu coste variable baja un 30–40 % respecto a la primera estimación, lo que sube el margen bruto de forma directa (ver §10).
+Buena pregunta la de si esos números cuadran con la realidad de una peluquería. Respuesta honesta: **no hay estadística oficial española pública por sector** (lo he comprobado: ni INE ni el Ministerio de Industria publican volumen de llamadas de peluquerías/centros de estética). Mis cifras eran una estimación de planificación razonable, no un dato medido. Con más búsqueda encuentro **benchmarks del sector** (mayoritariamente EE. UU., que es donde más se ha estudiado esto porque lo usan empresas de "AI receptionist" para vender su producto — hay que tomarlos con margen, pero sirven de referencia):
+
+- Un salón que atiende ~15 clientes/día recibe del orden de **10–15 llamadas/día** solo de reservas (sin contar consultas de precio/horario que no acaban en cita).
+- Salones más grandes o con más rotación llegan a ~25 llamadas/día.
+- El **62 % de las llamadas a peluquerías/centros de belleza en EE. UU. no se contestan** (fuente del argumento comercial de estas empresas, pero da una idea del volumen real que existe aunque hoy se pierda).
+- Duración media de llamada de reserva por voz IA: **2–3 minutos** (coincide con mi estimación de 2,5 min).
+
+Con esto, mi estimación original de **120 llamadas/mes (~4–5/día) para una "peluquería pequeña"** se queda en la parte **baja/conservadora** del rango real (un salón de barrio con 1–2 sillas, sin mucho movimiento) — no es descabellada, pero probablemente muchas peluquerías de Valladolid reciban más. Por eso, mejor que un único número, te doy una tabla de sensibilidad por volumen para que ubiques cada negocio concreto según su tamaño real (que se puede estimar en la venta preguntando cuántas llamadas reciben hoy, o simplemente mirando el registro de llamadas del móvil/fijo del negocio durante una semana antes de dar el precio).
+
+### 9.2 ter — Tabla de sensibilidad por volumen (2,5 min/llamada de media, confirmación por WhatsApp)
+
+| Volumen | Llamadas/día | Llamadas/mes (26 días) | Minutos/mes | Coste voz (lean) | + número + WhatsApp/SMS | **Coste total/mes** |
+|---|---|---|---|---|---|---|
+| Muy bajo (barrio, 1 silla) | 3–4 | ~90 | ~225 | 18–23 € | ~5 € | **~23–28 €** |
+| **Bajo–medio** (mi estimación inicial "peluquería pequeña") | 4–5 | ~120 | ~300 | 24–30 € | ~6 € | **~30–36 €** |
+| **Medio** (salón con 2–3 sillas, buen movimiento — más realista para la media del sector según los benchmarks de EE. UU.) | 10–12 | ~275 | ~690 | 55–69 € | ~10 € | **~65–79 €** |
+| Alto (salón grande / varios profesionales, o centro de estética con muchos tratamientos) | 18–20 | ~500 | ~1.250 | 100–125 € | ~15 € | **~115–140 €** |
+| Restaurante con reservas (referencia, otro patrón de llamada) | 15–20 | ~500 | ~1.250 | 100–125 € | ~20 € | **~120–145 €** |
+
+**Lectura práctica para el precio de venta**: si la media real de una peluquería está más cerca de la fila "Medio" que de mi estimación inicial "Bajo–medio", el **plan Básico (300 min incluidos, 149 €/mes)** se queda corto para muchos negocios y pasarían a consumir del plan Profesional (700 min) casi desde el primer mes — lo cual **no es un problema** (es más ingreso por exceso o por upgrade), pero conviene decirlo claro en la venta para que el negocio no se sorprenda. Recomiendo, antes de cerrar el precio con cada cliente real, pedirle **una semana de registro de llamadas** de su teléfono actual (la mayoría de móviles y centralitas lo tienen) para dimensionar el plan con su dato real, no con la media del sector.
+
+Con la configuración lean, en cualquier caso tu coste variable baja un 30–40 % respecto a la primera estimación (premium), lo que sube el margen bruto de forma directa (ver §10) — esa parte se mantiene independientemente del volumen real de cada negocio.
 
 ### 9.3 Inversión inicial
 - Tu tiempo: 5–7 semanas.
