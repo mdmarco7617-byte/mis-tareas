@@ -1,8 +1,10 @@
 # Verantia Voice — Asistente telefónico con IA para negocios locales (Valladolid)
 
-> Documento de proyecto v1 · 27/09/2026
+> Documento de proyecto v2 · 27/09/2026 (actualizado tras tus respuestas)
 > Alcance: recepcionista telefónica con IA, multi-tenant, para restaurantes, centros de estética, peluquerías, academias, clínicas no sanitarias, etc.
-> Backend: n8n + Supabase. Servicio de voz/telefonía: a decidir (este documento lo evalúa y recomienda).
+> Backend: n8n + Supabase. Servicio de voz/telefonía: **Retell AI en configuración "lean"** (ver §2).
+>
+> **Cambios en v2** (respuesta a tus comentarios): coste de voz recalculado a la baja con una configuración "lean" de Retell (~0,08–0,10 €/min en vez de 0,13–0,16); Supabase pasa a ser fuente de verdad universal de agenda con sincronización *opcional* a distintos calendarios (no solo Google); WhatsApp confirmado para tus alertas; SMS incorporado como alternativa/complemento a WhatsApp para confirmaciones; coste real de WhatsApp Business detallado (no se dispara el presupuesto); primer piloto en estética/peluquería con diseño explícitamente reutilizable para restaurantes.
 
 ---
 
@@ -11,12 +13,16 @@
 | Pregunta | Respuesta corta |
 |---|---|
 | ¿Es viable? | **Sí, totalmente.** La tecnología de voz en tiempo real en español ya es madura (latencia < 1 s, voces de España naturales). Para conversaciones acotadas (precios, horarios, reservas) el porcentaje de llamadas resueltas sin humano suele estar en el 70–90 %. |
-| Proveedor de voz recomendado | **Retell AI** (1ª opción) · **ElevenLabs Agents** (2ª, mejor voz, algo menos maduro en telefonía/herramientas) · Vapi solo si necesitas control extremo. |
+| Proveedor de voz recomendado | **Retell AI**, en **configuración lean** (LLM ligero + voz estándar + telefonía propia) para bajar el coste sin perder su punto fuerte: el manejo de turnos e interrupciones. Ver §2. |
 | Dónde vive el conocimiento del negocio | **En Supabase**, inyectado al inicio de cada llamada (no en la base de conocimiento del proveedor). Te explico por qué en el §4. |
+| Agenda | **Supabase como fuente de verdad única**, válida para cualquier negocio tenga o no Google Calendar. Sincronización de solo lectura a Google Calendar/Outlook/iCal es un extra opcional, no un requisito. Ver §5. |
 | Doble comprobación de disponibilidad | Sí: 1ª en `check_availability`, 2ª **atómica** dentro de `create_appointment` + restricción de base de datos que hace **imposible** el doble booking. |
+| Confirmación al cliente | **WhatsApp (recomendado) + SMS como alternativa/respaldo**, email opcional. Coste real detallado en §9 — no se dispara el presupuesto. |
+| Alertas para ti (Verantia) | **WhatsApp.** |
+| Primer piloto | **Estética/peluquería**, con el modelo de datos diseñado para reutilizarse en restaurantes con cambios menores (ver §5 y §8). |
 | Tiempo hasta MVP en producción (1 persona) | **5–7 semanas** con dedicación completa; 9–12 a media jornada. Alta de cada cliente nuevo después: 2–4 h. |
-| Coste variable | ~0,11–0,16 €/min todo incluido. Una llamada media (2,5 min) ≈ 0,30–0,40 €. |
-| Precio de mercado recomendado | Alta 390–790 € + cuota 149–399 €/mes según minutos. Margen bruto objetivo 60–75 %. |
+| Coste variable | ~**0,09–0,12 €/min** todo incluido (config. lean). Una llamada media (2,5 min) ≈ 0,22–0,30 €. |
+| Precio de mercado recomendado | Alta 390–790 € + cuota 149–399 €/mes según minutos. Margen bruto objetivo 65–80 %. |
 
 ---
 
@@ -27,7 +33,7 @@
 3. **Consulta disponibilidad** (hora concreta o "¿qué tenéis el jueves?").
 4. **Crea citas/reservas** con doble comprobación.
 5. **Modifica y anula** citas (identificando al cliente por su número de teléfono + nombre).
-6. **Envía confirmación** por email (y opcionalmente WhatsApp/SMS — ver §6.4, lo recomiendo).
+6. **Envía confirmación** por WhatsApp (con SMS de respaldo automático si falla), y por email si el cliente lo prefiere (ver §6.4).
 7. **Deriva a humano** si el cliente lo pide o si el asistente lo considera necesario: transferencia de la llamada en horario, o mensaje al WhatsApp del negocio con resumen + transcripción.
 8. **Avisa a Verantia** por WhatsApp si algo técnico falla.
 9. **Cumple RGPD/LOPDGDD y AI Act** (aviso de IA, información de protección de datos, minimización, retención limitada).
@@ -36,29 +42,44 @@ Fuera del MVP (fase 2): llamadas salientes (recordatorios), cobro de señales, i
 
 ---
 
-## 2. Evaluación de proveedores de voz
+## 2. Evaluación de proveedores de voz — y cómo abaratar Retell sin bajar la calidad
 
 Criterios: calidad de voz en español de España, latencia/naturalidad de turnos, fiabilidad llamando a herramientas (function calling), facilidad técnica, coste, soporte multi-tenant por API, números españoles, transferencia de llamada, cumplimiento RGPD.
 
-| Proveedor | Voz ES-ES | Latencia / turnos | Herramientas + n8n | Facilidad | Coste real €/min* | Multi-tenant | Veredicto |
-|---|---|---|---|---|---|---|---|
-| **Retell AI** | Muy buena (voces ElevenLabs/Cartesia/OpenAI integradas) | Excelente, el mejor manejo de interrupciones | Custom functions → webhook n8n; webhook de llamada entrante para variables dinámicas; post-call analysis | Alta | 0,11–0,15 | API sólida, un agente plantilla + variables por negocio | ⭐ **Recomendado** |
-| **ElevenLabs Agents** | La mejor del mercado | Muy buena | Server tools → webhook; "conversation initiation webhook" | Alta | 0,08–0,12 + LLM (hoy en parte absorbido) + telefonía | Buena | 2ª opción. Elegir si la voz es el argumento de venta nº1 |
-| **Vapi** | Buena (eliges proveedor) | Buena, pero requiere afinar | Muy flexible | Media (muchas piezas: STT+LLM+TTS+telefonía a configurar) | 0,12–0,24 (+ concurrencia extra) | Buena | Solo si necesitas control total; más horas de ajuste |
-| Synthflow / similares no-code | Correcta | Correcta | Limitada | Muy alta | 0,15–0,30 | Pensado para agencias (white label) | Más caro y menos control; no aprovecha tu n8n |
-| Bland AI | Enfocado a EE. UU. | Buena | Buena | Media | 0,09–0,15 | Sí | No lo recomiendo para ES |
-| Hacerlo tú (Twilio/LiveKit/Pipecat + OpenAI Realtime) | Buena | Depende de ti | Total | **Baja** | 0,06–0,12 | Tú lo construyes | No para empezar: meses de trabajo y mantenimiento |
+Me preguntabas si hay opciones más baratas con la misma calidad, o si se puede abaratar Retell "desde dentro". **Respuesta corta: sí se puede, y es mejor abaratar Retell que saltar a un competidor.** El precio de 0,13–0,16 €/min que te di es el de una configuración "todo premium" (LLM potente + voz premium + telefonía del propio proveedor). Cada uno de esos tres componentes se puede sustituir por una opción más barata **sin tocar el motor de turnos/interrupciones**, que es lo que de verdad marca la diferencia en una llamada de voz y donde los competidores baratos flojean.
+
+### Configuración "lean" de Retell (recomendada)
+| Componente | Opción premium (lo que se suele configurar por defecto) | Opción lean (recomendada) | Ahorro |
+|---|---|---|---|
+| LLM | GPT-4o / modelo "frontier" (~0,08–0,16 €/min) | Modelo ligero (GPT-5 nano/mini o Claude Haiku 4.5, ~0,01–0,025 €/min). Para este caso de uso (FAQs + recogida de datos estructurados con herramientas) es más que suficiente: la conversación está muy guiada por el prompt y las herramientas, no requiere razonamiento complejo | ~0,06–0,10 €/min |
+| Voz (TTS) | Voz premium (ElevenLabs alta gama) (~0,08 €/min) | Voz estándar/Cartesia (sigue sonando natural en español) (~0,04–0,05 €/min) | ~0,03–0,04 €/min |
+| Telefonía | Telefonía incluida de Retell (~0,015 €/min + margen) | **Tu propio troncal Twilio/Telnyx** conectado a Retell ("BYO telephony"): pagas telefonía a precio mayorista y evitas el margen del proveedor | ~0,005–0,01 €/min |
+| **Total estimado** | 0,13–0,16 €/min | **~0,08–0,10 €/min** | **~35–40 % más barato** |
+
+Con esta configuración obtienes prácticamente la misma calidad conversacional (el "cerebro" de turnos y latencia de Retell no cambia) por un coste cercano al de Vapi barato, pero sin la carga de integrar tú mismo STT+LLM+TTS+telefonía por separado. **Este es el ajuste que recomiendo hacer, no cambiar de proveedor.**
+
+### Comparativa de proveedores (con Retell ya en su versión lean)
+| Proveedor | Voz ES-ES | Latencia / turnos | Herramientas + n8n | Facilidad | Coste real €/min* | Veredicto |
+|---|---|---|---|---|---|---|
+| **Retell AI (lean)** | Muy buena | Excelente, el mejor manejo de interrupciones | Custom functions → webhook n8n | Alta | **0,08–0,10** | ⭐ **Recomendado** |
+| Retell AI (premium) | Muy buena | Excelente | Igual | Alta | 0,13–0,16 | Solo si en pruebas reales el lean se nota peor |
+| ElevenLabs Agents | La mejor del mercado | Muy buena | Server tools → webhook | Alta | 0,08–0,12 (+ LLM, hoy parcialmente absorbido) | 2ª opción, si la voz es el argumento de venta nº1 |
+| Vapi (lean: BYO Twilio + Deepgram + LLM ligero + TTS estándar) | Buena | Buena, pero **tú afinas** la sensibilidad de turno/interrupción | Muy flexible | Media-baja (más piezas que montar y mantener) | 0,06–0,09 | Solo si el coste manda por encima de todo y aceptas más horas de ajuste continuo |
+| Bland AI | Enfocado a EE. UU., sin garantías claras en ES | Buena | Buena | Media | 0,09 sin plataforma (+ LLM/TTS/telefonía aparte) | No lo recomiendo para ES: poca evidencia de calidad en español de España |
+| Synthflow / similares no-code | Correcta | Correcta | Limitada | Muy alta | 0,15–0,30 | Más caro y menos control; no aprovecha tu n8n |
+| Hacerlo tú (Twilio/LiveKit/Pipecat + Realtime) | Buena | Depende de ti | Total | **Baja** | 0,06–0,10 | No para empezar: meses de trabajo y mantenimiento propio |
 
 \* Coste orientativo a septiembre 2026, incluyendo voz + LLM + telefonía. **Verificar precios en el momento de contratar**, cambian cada pocos meses.
 
-### Por qué Retell como 1ª opción
-- Es el que mejor resuelve lo **difícil** de la voz (turnos, interrupciones, silencios, "ehh…") sin que tengas que afinarlo.
+### Por qué Retell (lean) como 1ª opción
+- Es el que mejor resuelve lo **difícil** de la voz (turnos, interrupciones, silencios, "ehh…") sin que tengas que afinarlo tú mismo — esto es justo lo que se pierde si vas a una opción "barata por diseño" tipo Vapi/Bland con piezas sueltas.
 - Patrón perfecto para multi-tenant: **un único agente plantilla** con variables dinámicas (`{{nombre_negocio}}`, `{{servicios}}`…) que se rellenan en el webhook de llamada entrante según el número llamado. Mantienes 1 prompt, no 50.
 - Transferencia de llamada (fría/cálida) nativa, análisis post-llamada (resumen, sentimiento, "¿se resolvió?") y webhooks firmados.
-- Puedes usar las voces de ElevenLabs dentro de Retell, así que no renuncias a la mejor voz.
+- Permite bajar LLM y voz a opciones ligeras/estándar y traer tu propia telefonía, sin perder el motor de conversación. Es decir: **se puede tener la calidad de Retell al precio de las alternativas baratas.**
+- Si en las pruebas piloto (§8) un negocio nota la voz "más plana" en la versión lean, subes solo ese componente (voz o LLM) para ese tenant — es un ajuste de configuración, no una migración.
 
 ### Cuándo cambiaría a ElevenLabs
-Si en las pruebas con clientes reales la voz de Retell se percibe "robótica" frente a ElevenLabs, o si ElevenLabs consolida su precio con LLM incluido por debajo de 0,10 €/min. **La arquitectura propuesta es agnóstica**: el backend n8n+Supabase no cambia; solo cambia la capa de voz (1–2 días de migración).
+Si en las pruebas con clientes reales la voz se percibe claramente mejor en ElevenLabs, o si ElevenLabs consolida su precio con LLM incluido por debajo de 0,10 €/min. **La arquitectura propuesta es agnóstica**: el backend n8n+Supabase no cambia; solo cambia la capa de voz (1–2 días de migración).
 
 ### Telefonía (números)
 - **Estrategia recomendada: el negocio conserva su número** y activa un **desvío** (si no contesta en X tonos / si comunica / fuera de horario / siempre) hacia un número de Verantia asignado a ese negocio.
@@ -153,7 +174,20 @@ Tablas principales (todas con `tenant_id` y **RLS activado**; n8n accede con `se
 
 Funciones RPC (SQL/plpgsql): `check_availability`, `get_available_slots`, `create_appointment` (comprueba + inserta en una transacción), `find_customer_appointments`, `cancel_appointment`, `reschedule_appointment` (comprueba nuevo hueco + actualiza de forma atómica), `purge_expired_data`.
 
-**Agenda visible para el negocio**: fase 1, sincronización unidireccional a Google Calendar (el negocio la ve en el móvil) + acceso a una vista simple. Fase 2, panel web propio. Si el negocio ya usa Booksy/Treatwell/CoverManager, hay que valorar caso a caso (muchas no tienen API abierta): **pregúntalo en la venta**, es el mayor riesgo comercial del proyecto.
+### Agenda: Supabase como fuente de verdad única (no dependas de que el negocio use Google Calendar)
+
+Tenías razón en dudarlo: no todos los negocios usan Google Calendar (muchas peluquerías/estéticas llevan la agenda en papel, en una libreta, en una app de gestión de citas tipo Booksy/Treatwell, o en el calendario del móvil sin más). La solución no es elegir "Supabase o Google Calendar", es que **Supabase sea siempre la fuente de verdad** (ahí vive la disponibilidad real que consulta el asistente) y que la forma en que el negocio *ve* su agenda sea un adaptador de visualización, opcional y por tenant:
+
+| El negocio... | Cómo ve su agenda |
+|---|---|
+| No usa ningún calendario digital hoy | Vista simple propia (Verantia) por web/móvil, alimentada directamente por Supabase. Es la opción por defecto y la más sencilla de dar de alta. |
+| Usa Google Calendar | Sincronización de solo lectura Supabase → Google Calendar (un evento por cita, actualizado en cada creación/cambio/cancelación). |
+| Usa Outlook/Microsoft 365 | Mismo patrón vía Microsoft Graph API. |
+| Usa otra cosa o nada compatible | Export a `.ics` (funciona con casi cualquier app de calendario) y/o resumen diario por email/WhatsApp de las citas del día. |
+
+Esto es un **adaptador por negocio, no el núcleo del sistema**: añades o quitas la sincronización sin tocar la lógica de disponibilidad ni el asistente. Así el sistema "vale para distintos calendarios" tal y como pedías, sin depender de ninguno.
+
+**Lo que sí sigue siendo un riesgo real**: si el negocio quiere que su agenda *siga estando* en Booksy/Treatwell/CoverManager y que sea esa herramienta (no Supabase) la que decide la disponibilidad, hace falta que esa plataforma tenga API — muchas no la tienen abierta para terceros. **Pregúntalo en la venta**: si el negocio acepta que la agenda "de verdad" pase a estar en Supabase (con la vista/sincronización que prefiera), no hay problema; si insiste en mantener la otra plataforma como única fuente, hay que valorarlo caso a caso o descartarlo para el MVP.
 
 ---
 
@@ -184,11 +218,14 @@ Herramientas:
 ### 6.3 `VOICE · Call Ended` (post-llamada)
 Guardar duración, resultado y resumen; enviar confirmación/actualización; si `escalada` o el análisis dice "no resuelto" → WhatsApp al negocio con resumen (y transcripción si el negocio lo tiene activado); contabilizar minutos para facturación y alertar si un cliente supera su plan.
 
-### 6.4 Confirmaciones: email sí, pero ojo
-Dictar un email por teléfono es la parte **más frágil** de toda la conversación (letras, puntos, "arroba", dominios raros). Propuesta:
-- **Recomendado**: confirmación por **WhatsApp** (plantilla de utilidad de WhatsApp Cloud API, ~0,02–0,04 € por mensaje) o SMS al número desde el que llama; no hay que pedir nada.
-- **Email**: si el cliente ya es conocido, usar el guardado; si no, pedirlo solo si lo desea, **deletreado** y leído de vuelta para confirmar. Envío con Brevo/Resend/SMTP (gratis o casi en este volumen).
-- Configurable por negocio.
+### 6.4 Confirmaciones: WhatsApp + SMS de respaldo, email opcional
+Dictar un email por teléfono es la parte **más frágil** de toda la conversación (letras, puntos, "arroba", dominios raros). Con tu confirmación de usar WhatsApp + valorar SMS, la propuesta queda así:
+
+1. **WhatsApp (canal principal)**: al número desde el que llama, sin pedir nada. Plantilla de utilidad aprobada por Meta ("Tu cita en [Negocio]: [servicio], [fecha] [hora]. Para cancelar o modificar, llama al [teléfono]."). Coste real ≈ **0,014–0,02 €/mensaje** en España (ver desglose de precios en §9.2) — mucho más barato de lo que sugerían mis cifras iniciales de 0,02–0,04 €.
+2. **SMS (respaldo automático)**: si el número no tiene WhatsApp (falla el envío, "número no válido para WhatsApp") o si el negocio prefiere SMS como canal único (algunos clientes mayores usan más el SMS), se envía por Twilio. Coste ≈ **0,08 €/SMS a España** — más caro que WhatsApp pero sigue siendo marginal por reserva.
+3. **Email**: si el cliente ya es conocido, se usa el guardado; si no, se pide solo si lo desea, **deletreado** y leído de vuelta para confirmar. Envío con Brevo/Resend/SMTP (gratis o casi en este volumen). Útil también para negocios cuyo público valora tener un justificante por email (academias, por ejemplo).
+
+Configurable por negocio: canal principal (WhatsApp/SMS/email), y si se activa el de respaldo automático.
 
 ### 6.5 Derivación a humano
 Disparadores: el cliente lo pide ("quiero hablar con una persona"), queja/enfado, tema fuera de alcance (salud, presupuestos especiales, grupos grandes), 2 intentos fallidos de entender, o error técnico.
@@ -196,11 +233,11 @@ Disparadores: el cliente lo pide ("quiero hablar con una persona"), queja/enfado
 - Fuera de horario / nadie contesta → "Tomo nota y te llamarán" + **WhatsApp al negocio**: nombre, teléfono, motivo, resumen y enlace/transcripción.
 
 ### 6.6 Errores y alertas (Verantia)
-- **Error Trigger global** en n8n → WhatsApp a Verantia: workflow, nodo, tenant, `call_id`, mensaje (sin datos personales).
+- **Error Trigger global** en n8n → **WhatsApp a Verantia** (confirmado): workflow, nodo, tenant, `call_id`, mensaje (sin datos personales).
 - Alertas de negocio: webhook sin respuesta, tasa de llamadas no resueltas > X %, tenant sin número, consumo anómalo, saldo del proveedor bajo.
 - **Health check** diario (cron): llamada a cada endpoint con un tenant de pruebas + comprobación de Supabase; opcionalmente, una llamada sintética semanal.
 - Anti-spam de alertas: agrupar el mismo error en 10 min.
-- Para tus propias alertas, WhatsApp Cloud API con una plantilla de "alerta técnica". Si quieres algo más simple y gratis, Telegram es alternativa válida (tú decides; para los negocios, WhatsApp).
+- Plantilla de "alerta técnica" de utilidad en WhatsApp Cloud API para tus propios avisos — mismo canal que usas para los negocios, así que no añade un proveedor nuevo. Coste marginal (unos pocos mensajes/día como mucho): irrelevante frente al ahorro de tener un panel/servidor de monitorización aparte.
 
 ### 6.7 Sanitización y seguridad
 - Firma HMAC en todos los webhooks; rechazar lo no firmado.
@@ -266,23 +303,32 @@ A media jornada: 10–12 semanas hasta el piloto.
 | Servidor n8n autoalojado (UE) | 10–25 |
 | Supabase Pro (backups, sin pausa) | ~25 |
 | Dominio, email transaccional, monitorización | 0–15 |
-| WhatsApp Cloud API (alertas) | ~0–5 |
+| WhatsApp Cloud API (número de Verantia, cuenta) | ~0–5 |
 | **Total** | **~40–70 €/mes** |
 
-### 9.2 Costes variables por negocio
+### 9.2 Costes variables por negocio (recalculado con Retell en configuración lean, §2)
+
+**Voz — 0,08–0,10 €/min todo incluido** (LLM ligero + voz estándar + telefonía propia), en vez de los 0,11–0,16 €/min de la configuración premium inicial.
+
+**WhatsApp — desglose real (para que veas que no se dispara el presupuesto):**
+Meta cobra por plantilla enviada, según categoría y país. Para España, la plantilla de **"utilidad"** (la que usaríamos para confirmar una cita) cuesta del orden de **0,013–0,017 €/mensaje** en tarifa base de Meta; el proveedor que te da acceso a la API (Twilio, 360dialog, etc.) añade normalmente 0,003–0,01 €/mensaje de margen. **Total realista: ~0,015–0,025 €/mensaje de confirmación** — más barato de lo que estimé al principio (0,02–0,04 €), no más caro.
+- ⚠️ Un cambio a vigilar: Meta ha anunciado que a partir de octubre de 2026 empieza a cobrar también los **mensajes de servicio en respuesta al cliente** dentro de la ventana de 24 h (antes eran gratis). No nos afecta al flujo principal (nosotros enviamos siempre plantillas de utilidad, que ya se pagaban), pero si en el futuro añades un chat de WhatsApp abierto con el negocio o el cliente, ese coste habrá que contemplarlo entonces. Lo reviso cuando lleguemos a esa fase.
+- **SMS de respaldo** (Twilio): ~0,08 €/SMS a números españoles — se usa solo cuando falla WhatsApp o el negocio prefiere SMS, así que en la mayoría de negocios es un coste marginal (unos pocos €/mes).
+
+**Resto:**
 | Concepto | Coste |
 |---|---|
-| Voz todo incluido (Retell + LLM + telefonía) | 0,11–0,16 €/min |
-| Número español | 1–5 €/mes |
-| Mensajes WhatsApp de confirmación | 0,02–0,04 €/mensaje |
-| Email | ~0 |
+| Número español (desvío) | 1–5 €/mes |
+| Email (Brevo/Resend) | ~0 en este volumen |
 
-**Ejemplos (llamada media 2,5 min):**
-| Negocio | Llamadas/mes | Minutos | Coste voz | + número + WhatsApp | **Coste total** |
+**Ejemplos recalculados (llamada media 2,5 min, confirmación por WhatsApp):**
+| Negocio | Llamadas/mes | Minutos | Coste voz (lean) | + número + WhatsApp/SMS | **Coste total** |
 |---|---|---|---|---|---|
-| Peluquería pequeña | 120 | 300 | 33–48 € | ~6 € | **~40–55 €** |
-| Centro de estética | 250 | 625 | 70–100 € | ~10 € | **~80–110 €** |
-| Restaurante con reservas | 500 | 1.250 | 140–200 € | ~20 € | **~160–220 €** |
+| Peluquería pequeña | 120 | 300 | 24–30 € | ~6 € | **~30–36 €** |
+| Centro de estética | 250 | 625 | 50–63 € | ~10 € | **~60–73 €** |
+| Restaurante con reservas | 500 | 1.250 | 100–125 € | ~20 € | **~120–145 €** |
+
+Con la configuración lean, tu coste variable baja un 30–40 % respecto a la primera estimación, lo que sube el margen bruto de forma directa (ver §10).
 
 ### 9.3 Inversión inicial
 - Tu tiempo: 5–7 semanas.
@@ -303,20 +349,35 @@ Propuesta:
 | **Premium** | + chatbot web incluido, sincronización de calendario, informes mensuales, 1.500 min | 399 €/mes | 790 € |
 | Exceso | | 0,25–0,30 €/min | |
 
-- Margen bruto estimado: 60–75 %.
+- Margen bruto estimado: **65–80 %** (mejora respecto al 60–75 % inicial gracias a la configuración lean de voz y al coste real de WhatsApp, más bajo de lo estimado).
 - Permanencia 6–12 meses o descuento anual (2 meses gratis).
 - Oferta de lanzamiento en Valladolid: piloto 30 días con 50 % de descuento en el alta.
 - Venta cruzada: chatbot web (que ya tienes) + teléfono con el mismo backend.
 
 ---
 
-## 11. Decisiones que necesito que confirmes antes de pasar al JSON / código
+## 11. Decisiones — estado tras tus respuestas
 
-1. **Proveedor de voz**: Retell (recomendado) vs ElevenLabs. Propuesta: 1 h de prueba de voz con ambos y decidir.
-2. **Proveedor de números**: Twilio (más documentado) vs Telnyx (más barato) vs SIP español.
-3. **Agenda**: Supabase como fuente de verdad + Google Calendar de solo lectura para el negocio (recomendado) vs Google Calendar como fuente de verdad (como tu chatbot actual, si es lo que usa).
-4. **Confirmación**: WhatsApp (recomendado) + email opcional, o solo email.
-5. **Alertas para ti**: WhatsApp Cloud API vs Telegram.
-6. **Sector del primer piloto**: estética/peluquería (recursos por profesional) o restaurante (capacidad por franja). El modelo soporta ambos, pero conviene empezar por uno.
+| # | Decisión | Estado |
+|---|---|---|
+| 1 | Proveedor de voz | ✅ **Retell AI, en configuración lean** (§2). Prueba de 1 h lean vs premium recomendada en fase 0 para validar que la voz estándar no se nota peor; si se nota, subimos solo ese componente. |
+| 2 | Proveedor de números | 🟡 **Pendiente** — Twilio (más documentado, algo más caro) vs Telnyx (más barato) vs SIP español. Propuesta: empezar con **Twilio** para el piloto (menos fricción, mejor soporte de Retell) y evaluar Telnyx cuando haya varios negocios y el volumen justifique optimizar coste. |
+| 3 | Agenda | ✅ **Supabase como fuente de verdad universal**, con adaptadores opcionales de visualización (Google Calendar, Outlook, .ics) según lo que use cada negocio (§5). No se depende de ningún calendario externo. |
+| 4 | Confirmación | ✅ **WhatsApp (canal principal) + SMS de respaldo automático**, email opcional (§6.4). |
+| 5 | Alertas para ti | ✅ **WhatsApp.** |
+| 6 | Sector del primer piloto | ✅ **Estética/peluquería**, con el modelo de datos y los workflows diseñados para reutilizarse en restaurantes (ver más abajo). |
 
-Siguiente entrega propuesta: script SQL de Supabase (esquema + RLS + funciones RPC) → workflows n8n (JSON) → prompt y configuración del agente.
+### Cómo queda garantizada la reutilización estética/peluquería → restaurante
+El modelo de datos (§5) ya está pensado para esto desde el principio, no es un añadido:
+- **Lo que no cambia entre sectores** (el ~80 % del sistema): autenticación/tenant por número llamado, las herramientas de disponibilidad/reserva/cancelación, el doble-check atómico, las notificaciones (WhatsApp/SMS/email), la derivación a humano, las alertas, el cumplimiento RGPD, todo el backend n8n y el esquema Supabase.
+- **Lo que cambia por sector** (configuración, no código nuevo):
+  - `resources`: en estética/peluquería es "profesional" (con sus servicios asignados); en restaurante es "mesa" (con capacidad de comensales).
+  - Reglas de disponibilidad: en estética/peluquería se reserva un profesional para una franja continua; en restaurante se comprueba capacidad agregada en una franja (varias mesas, aforo).
+  - El prompt de voz: vocabulario del sector (tratamientos/servicios vs. platos/menú/alérgenos) y alguna pregunta extra en restaurante (número de comensales, si hay alguna alergia — sin registrar el detalle, solo derivarlo a nota para el negocio).
+- **Coste de adaptar a un restaurante una vez montado el sistema para estética**: ese cambio de configuración + ajustar el prompt, no reconstruir nada. Un par de días, no semanas.
+
+### Pendiente para seguir
+- Confirmar proveedor de números (#2) cuando quieras — no bloquea empezar con la base de datos.
+- Elegir el negocio concreto del piloto en Valladolid (estética o peluquería) para tener datos reales con los que probar el prompt.
+
+Siguiente entrega propuesta: script SQL de Supabase (esquema + RLS + funciones RPC) → workflows n8n (JSON) → prompt y configuración del agente (versión lean).
