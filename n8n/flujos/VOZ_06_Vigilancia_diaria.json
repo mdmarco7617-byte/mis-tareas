@@ -1,0 +1,230 @@
+{
+  "name": "VOZ · 06 Vigilancia diaria",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "id": "c9ee5a76-bb5f-537f-8ba4-37b40a7b4cee",
+      "name": "Cada día a las 8:05"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        480
+      ],
+      "id": "d4c874ad-e8da-55d9-a250-4d60d34dc6ab",
+      "name": "Probar ahora"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cvbmsdliucawhzmzyylp.supabase.co/rest/v1/rpc/fn_voz_health",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ \"{}\" }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "id": "e98a8d93-53d2-574e-b433-1d2ba01cb851",
+      "name": "Supabase · estado del sistema",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REEMPLAZAR",
+          "name": "Supabase · Verantia Voz"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Revisión diaria: solo avisa si algo no va bien. Sin datos personales (solo contadores).\nconst s = $input.first().json || {};\nconst problemas = [];\nif (s.ok !== true) problemas.push('Supabase no responde o devuelve un error');\nif (Number(s.errores_24h) > 0) {\n  const detalle = Object.entries(s.errores_por_codigo || {}).map(([c, n]) => `${c}: ${n}`).join(', ');\n  problemas.push(`${s.errores_24h} errores en 24 h (${detalle})`);\n}\nif (s.ok === true && s.purga_programada !== true) problemas.push('La purga diaria RGPD (pg_cron) no está activa');\n\nif (!problemas.length) return [];\nreturn [{ json: {\n  origen: 'VOZ · 06 Vigilancia diaria',\n  codigo: 'REVISION_DIARIA',\n  detalle: `${problemas.join(' | ')} · llamadas 24 h: ${s.llamadas_24h ?? '?'}, derivadas: ${s.derivadas_24h ?? '?'}`,\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ],
+      "id": "ea336fc7-cb16-5b03-8d96-5faef1fdb3ac",
+      "name": "Evaluar"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a8f3bf2-92b4-57e5-af1f-8812b02a6ade",
+              "name": "origen",
+              "value": "VOZ · 06 Vigilancia diaria",
+              "type": "string"
+            },
+            {
+              "id": "62eaece0-bba6-5e61-b244-551874bd7cca",
+              "name": "codigo",
+              "value": "SUPABASE_NO_RESPONDE",
+              "type": "string"
+            },
+            {
+              "id": "5c830aaf-fdd4-5125-90ae-42e423767466",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "91a9417f-6f19-5513-9208-b9bb2d2e425f",
+              "name": "call_id",
+              "value": "={{ $json.call_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "4ad36854-606c-55d1-8bbe-48045c381915",
+              "name": "detalle",
+              "value": "={{ ($json.error && ($json.error.message || $json.error.description)) || \"sin detalle\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        420
+      ],
+      "id": "ed0615ae-cc96-519f-80b5-a42d0a63033d",
+      "name": "Datos de la alerta (Supabase)"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 05 Alertas Verantia"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ],
+      "id": "e6b99324-a89e-5dcb-8e09-70570cc29c61",
+      "name": "Avisar a Verantia"
+    }
+  ],
+  "connections": {
+    "Cada día a las 8:05": {
+      "main": [
+        [
+          {
+            "node": "Supabase · estado del sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probar ahora": {
+      "main": [
+        [
+          {
+            "node": "Supabase · estado del sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · estado del sistema": {
+      "main": [
+        [
+          {
+            "node": "Evaluar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Datos de la alerta (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Madrid",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

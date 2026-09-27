@@ -1,0 +1,18 @@
+{
+  "SUPABASE_URL": "https://cvbmsdliucawhzmzyylp.supabase.co",
+  "WHATSAPP_API_URL": "https://graph.facebook.com",
+  "WHATSAPP_API_VERSION": "v21.0",
+  "WHATSAPP_PHONE_NUMBER_ID": "REEMPLAZAR_ID_DEL_NUMERO_DE_WHATSAPP",
+  "WHATSAPP_IDIOMA": "es_ES",
+  "WHATSAPP_VERANTIA": "+34600000000",
+  "PLANTILLA_CITA_CONFIRMADA": "verantia_cita_confirmada",
+  "PLANTILLA_CITA_MODIFICADA": "verantia_cita_modificada",
+  "PLANTILLA_CITA_ANULADA": "verantia_cita_anulada",
+  "PLANTILLA_AVISO_NEGOCIO": "verantia_aviso_negocio",
+  "PLANTILLA_ALERTA": "verantia_alerta_tecnica",
+  "TWILIO_API_URL": "https://api.twilio.com",
+  "TWILIO_ACCOUNT_SID": "REEMPLAZAR_ACxxxxxxxx",
+  "SMS_REMITENTE": "Verantia",
+  "EMAIL_REMITENTE": "citas@verantia.es",
+  "EMAIL_VERANTIA": "alertas@verantia.es"
+}

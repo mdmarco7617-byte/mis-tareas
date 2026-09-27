@@ -1,0 +1,504 @@
+{
+  "name": "VOZ · 02 Herramientas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verantia-voz/herramientas",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "id": "35685265-ded9-500f-b5b7-959dbeb1009e",
+      "name": "Retell · herramienta",
+      "webhookId": "03aa7554-cc6d-5d3f-acbf-d72c53c806cf"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lee el cuerpo EXACTO que envió Retell (hace falta byte a byte para verificar su firma)\n// y las cabeceras. La firma se verifica en Supabase; aquí no se interpreta nada.\nconst item = $input.first();\nconst h = item.json.headers || {};\n\nlet raw = null;\nif (item.binary) {\n  const prop = Object.keys(item.binary)[0];\n  if (prop) raw = (await this.helpers.getBinaryDataBuffer(0, prop)).toString('utf8');\n}\n\nconst cab = (n) => (typeof h[n] === 'string' && h[n].length <= 100 ? h[n] : null);\n\nreturn [{ json: {\n  p_raw: raw ?? '',\n  p_signature: String(h['x-retell-signature'] || '').slice(0, 200),\n  // Solo en el formato \"solo argumentos\" de Retell (cabeceras configuradas en cada función)\n  p_tool: cab('x-herramienta'),\n  p_to: cab('x-numero-negocio'),\n  p_from: cab('x-numero-llamante'),\n  p_call_id: cab('x-id-llamada'),\n  cuerpo_leido: raw !== null,\n  evento: (item.json.body && typeof item.json.body.event === 'string') ? item.json.body.event : null,\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "id": "abaac43f-b3b7-5e68-a513-bd4964e83b73",
+      "name": "Leer petición"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cvbmsdliucawhzmzyylp.supabase.co/rest/v1/rpc/fn_voz_tool",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_raw: $json.p_raw, p_signature: $json.p_signature, p_tool: $json.p_tool, p_to: $json.p_to, p_from: $json.p_from, p_call_id: $json.p_call_id }) }}",
+        "options": {
+          "timeout": 4000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "d8ffd84a-4013-5476-afeb-295d51838170",
+      "name": "Supabase · ejecutar herramienta",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REEMPLAZAR",
+          "name": "Supabase · Verantia Voz"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d0aeec66-1190-5755-8346-cd18c47ae7aa",
+              "leftValue": "={{ $json.firma_valida }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        660,
+        200
+      ],
+      "id": "4507cbe8-b476-5503-8da1-721c8f2b22d5",
+      "name": "¿Firma válida?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 200
+        },
+        "responseBody": "={{ JSON.stringify($json.agente) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        100
+      ],
+      "id": "bb1b09db-3fd5-5879-b9e9-f25094b99ad4",
+      "name": "Responder al agente"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        320
+      ],
+      "id": "5b1ddaf7-43b3-54cd-914f-9c84762deba8",
+      "name": "Rechazar (401)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 200
+        },
+        "responseBody": "={{ JSON.stringify({ codigo: \"ERROR_TECNICO\", mensaje: \"Ha habido un problema técnico. Discúlpate, toma nota del motivo de la llamada y di que el equipo le llamará.\" }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        520
+      ],
+      "id": "28384d07-976c-59bb-b98b-6de775007f87",
+      "name": "Responder error técnico"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b7d8030b-6caa-535f-8b75-cf03bf510821",
+              "leftValue": "={{ !!$json.notificacion }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "d825efb0-f5f7-5422-8d7a-d562a9ab67bf",
+      "name": "¿Hay que notificar?"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 04 Notificaciones"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "22b62936-a2d4-51e3-895d-d6e4a5b7c019",
+      "name": "Enviar notificaciones"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "87d01f13-e58a-5e49-a18b-e20973b460eb",
+              "leftValue": "={{ $json.alerta === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "917dc84c-61a3-5fc0-b80e-d13bb16bdfdd",
+      "name": "¿Error técnico?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ee78f224-65e1-51cb-a91c-f777a58ed5b5",
+              "name": "origen",
+              "value": "VOZ · 02 Herramientas",
+              "type": "string"
+            },
+            {
+              "id": "a978855f-a558-52f9-a453-fc90b67d54b5",
+              "name": "codigo",
+              "value": "={{ \"HERRAMIENTA_\" + ($json.herramienta || \"?\") + \"_ERROR_TECNICO\" }}",
+              "type": "string"
+            },
+            {
+              "id": "0b79c784-8df6-5ee0-b2ee-619daea6fa50",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "ac4b5a05-26d4-55ad-8577-075b9cb5a93c",
+              "name": "call_id",
+              "value": "={{ $json.call_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "8fc0150d-6ebf-5c04-9a56-92a2c642288f",
+              "name": "detalle",
+              "value": "={{ \"\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "d27e2bd0-6dcc-516a-86b0-721dcabd451e",
+      "name": "Datos de la alerta"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ef4e9b1a-4921-5cf2-9622-5c055edb63bf",
+              "name": "origen",
+              "value": "VOZ · 02 Herramientas",
+              "type": "string"
+            },
+            {
+              "id": "5996fd94-f7c6-5e19-b56b-cb4f75192ad6",
+              "name": "codigo",
+              "value": "SUPABASE_NO_RESPONDE",
+              "type": "string"
+            },
+            {
+              "id": "b49804b9-7757-5496-9a18-89332a5429ae",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "b5d8368b-1e2c-5c65-b530-102a5ebe8587",
+              "name": "call_id",
+              "value": "={{ $json.call_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "942ac768-8aad-5d9a-8f30-153b11bf2c28",
+              "name": "detalle",
+              "value": "={{ ($json.error && ($json.error.message || $json.error.description)) || \"sin detalle\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        520
+      ],
+      "id": "be421e9c-d829-572d-8b7c-8cdd64dea43b",
+      "name": "Datos de la alerta (Supabase)"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 05 Alertas Verantia"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        300
+      ],
+      "id": "b060446a-b3a8-54d8-b293-0f52835c9617",
+      "name": "Avisar a Verantia"
+    }
+  ],
+  "connections": {
+    "Retell · herramienta": {
+      "main": [
+        [
+          {
+            "node": "Leer petición",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer petición": {
+      "main": [
+        [
+          {
+            "node": "Supabase · ejecutar herramienta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · ejecutar herramienta": {
+      "main": [
+        [
+          {
+            "node": "¿Firma válida?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder error técnico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Firma válida?": {
+      "main": [
+        [
+          {
+            "node": "Responder al agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rechazar (401)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder al agente": {
+      "main": [
+        [
+          {
+            "node": "¿Hay que notificar?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿Error técnico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay que notificar?": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Error técnico?": {
+      "main": [
+        [
+          {
+            "node": "Datos de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder error técnico": {
+      "main": [
+        [
+          {
+            "node": "Datos de la alerta (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Madrid",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

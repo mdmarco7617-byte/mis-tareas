@@ -9,7 +9,7 @@ Contrato de herramientas: [`../docs/asistente-telefonico-ia/CONTRATO_HERRAMIENTA
 | Proyecto Supabase | **`verantia-voz`** (ref `cvbmsdliucawhzmzyylp`) — separado del proyecto del chatbot web |
 | Región | eu-central-1 (Frankfurt, UE) |
 | URL de la API | `https://cvbmsdliucawhzmzyylp.supabase.co` |
-| Migraciones aplicadas | 001 esquema · 002 funciones · 003 purga RGPD diaria (pg_cron, 03:15 UTC) · 004 ajustes de los advisors |
+| Migraciones aplicadas | 001 esquema · 002 funciones · 003 purga RGPD diaria (pg_cron, 03:15 UTC) · 004 ajustes de los advisors · 005 entrada firmada de Retell + plazos y derechos RGPD |
 | Datos cargados | Festivos de Valladolid oct-2026 → 2027 y los 2 negocios demo (números ficticios +34983000001/2) |
 
 Quitar los negocios demo cuando entre el primer cliente real:
@@ -27,17 +27,19 @@ delete from public.tenants where slug in ('peluqueria-demo', 'restaurante-demo')
 | `migrations/20260927000002_funciones_reserva.sql` | Lógica de disponibilidad, reservas, derivación, RGPD y puntos de entrada para n8n |
 | `migrations/20260927000003_purga_automatica.sql` | Tarea diaria pg_cron que aplica la retención RGPD aunque n8n esté caído |
 | `migrations/20260927000004_ajustes_advisors.sql` | search_path fijo e índices sobre claves foráneas (avisos de Supabase) |
+| `migrations/20260927000005_entrada_retell_y_rgpd.sql` | Verificación de la firma de Retell (clave en Vault), respuestas sin datos de contacto para la IA, plazos de conservación, exportación de datos de un cliente |
 | `seed/festivos_valladolid.sql` | Festivos oct-2026 → 2027 (verificar con BOCyL cada año) |
 | `seed/demo_negocios.sql` | Peluquería y restaurante de ejemplo (**no cargar en producción**) |
-| `tests/` | 77 tests funcionales + prueba de concurrencia real |
+| `tests/` | 77 tests funcionales + concurrencia real + 25 de firma y RGPD |
 
 ## Instalar en Supabase
 
 1. Crear el proyecto en **región UE** (Frankfurt o Irlanda).
 2. **SQL Editor** → pegar y ejecutar, en este orden:
-   1. Las 4 migraciones de `migrations/`, en orden
-   2. `seed/festivos_valladolid.sql`
-   3. (opcional, para pruebas) `seed/demo_negocios.sql`
+   1. Las 5 migraciones de `migrations/`, en orden
+   2. La API key de Retell en Vault: `select vault.create_secret('<API key>', 'retell_api_key');`
+   3. `seed/festivos_valladolid.sql`
+   4. (opcional, para pruebas) `seed/demo_negocios.sql`
 
    Con la CLI de Supabase: copiar la carpeta `migrations` a `supabase/migrations` del proyecto y hacer `supabase db push`.
 3. En n8n, crear la credencial con la **service_role key** (Project Settings → API). **Nunca** la anon key: con la anon key todas las funciones y tablas están bloqueadas a propósito.

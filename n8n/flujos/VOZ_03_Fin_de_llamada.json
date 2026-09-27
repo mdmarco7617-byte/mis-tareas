@@ -1,0 +1,428 @@
+{
+  "name": "VOZ · 03 Fin de llamada",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verantia-voz/eventos",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "id": "aff122bd-db8b-5f52-bff0-9c078d31cf24",
+      "name": "Retell · eventos de llamada",
+      "webhookId": "a0c92765-c4f3-5e15-b079-cbcc8e241688"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lee el cuerpo EXACTO que envió Retell (hace falta byte a byte para verificar su firma)\n// y las cabeceras. La firma se verifica en Supabase; aquí no se interpreta nada.\nconst item = $input.first();\nconst h = item.json.headers || {};\n\nlet raw = null;\nif (item.binary) {\n  const prop = Object.keys(item.binary)[0];\n  if (prop) raw = (await this.helpers.getBinaryDataBuffer(0, prop)).toString('utf8');\n}\n\nconst cab = (n) => (typeof h[n] === 'string' && h[n].length <= 100 ? h[n] : null);\n\nreturn [{ json: {\n  p_raw: raw ?? '',\n  p_signature: String(h['x-retell-signature'] || '').slice(0, 200),\n  // Solo en el formato \"solo argumentos\" de Retell (cabeceras configuradas en cada función)\n  p_tool: cab('x-herramienta'),\n  p_to: cab('x-numero-negocio'),\n  p_from: cab('x-numero-llamante'),\n  p_call_id: cab('x-id-llamada'),\n  cuerpo_leido: raw !== null,\n  evento: (item.json.body && typeof item.json.body.event === 'string') ? item.json.body.event : null,\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "id": "f6db0ade-7f6f-5a2b-99bf-7d946e21e7a7",
+      "name": "Leer petición"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "77363182-e251-5b83-8fb7-b67805176f7e",
+              "leftValue": "={{ $json.evento === \"call_analyzed\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        300
+      ],
+      "id": "c2699f9a-5283-5730-9bf7-a87ae13e080f",
+      "name": "¿Es call_analyzed?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cvbmsdliucawhzmzyylp.supabase.co/rest/v1/rpc/fn_voz_event",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_raw: $json.p_raw, p_signature: $json.p_signature }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "id": "c2c84bc9-6cd8-5f3b-acf7-b8fb718a7e3c",
+      "name": "Supabase · registrar llamada",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REEMPLAZAR",
+          "name": "Supabase · Verantia Voz"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f58ef37c-c066-504a-8447-0fff72fcfba6",
+              "leftValue": "={{ $json.avisar_negocio === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        200
+      ],
+      "id": "32f9a50f-b733-5521-aa24-c30ecbf19f1b",
+      "name": "¿Avisar al negocio?"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 04 Notificaciones"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "271c3086-1d5f-5ea9-b8f8-32f6e8dd81af",
+      "name": "Enviar notificaciones"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0069355a-3fee-5c2b-8e1f-bb0f27dc0410",
+              "leftValue": "={{ $json.ok !== true || $json.exceso_minutos === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        400
+      ],
+      "id": "6e8a2887-663c-5a13-b9b5-a68848953558",
+      "name": "¿Algo que revisar?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c54fcd0c-828a-5b44-ac34-4ed71cb930b3",
+              "name": "origen",
+              "value": "VOZ · 03 Fin de llamada",
+              "type": "string"
+            },
+            {
+              "id": "1dd670cd-a889-5e98-acb1-c36b3ca882b3",
+              "name": "codigo",
+              "value": "={{ $json.ok !== true ? ($json.codigo || \"ERROR\") : \"EXCESO_MINUTOS\" }}",
+              "type": "string"
+            },
+            {
+              "id": "7a89c42d-0867-5394-b9eb-749def6aeab4",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "2b0be840-ef6f-5b9b-8f04-e9190125cbcd",
+              "name": "call_id",
+              "value": "={{ $json.call_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "bebaf6e8-f546-5d09-b1e7-ec050e02ed9f",
+              "name": "detalle",
+              "value": "={{ $json.ok === true ? (\"minutos del mes: \" + $json.minutos_mes + \" de \" + $json.minutos_incluidos) : \"\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "a98d8b34-281d-53d0-aab1-2616ad3ac13b",
+      "name": "Datos de la alerta"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "072b2635-bcf6-5dd5-8055-cc1deb8ace8d",
+              "name": "origen",
+              "value": "VOZ · 03 Fin de llamada",
+              "type": "string"
+            },
+            {
+              "id": "cd0ac6fc-3bb7-576f-81ed-7d1c7181ba61",
+              "name": "codigo",
+              "value": "SUPABASE_NO_RESPONDE",
+              "type": "string"
+            },
+            {
+              "id": "65e56ed5-9bae-5795-aeb6-a83438fc476e",
+              "name": "tenant_id",
+              "value": "={{ $json.tenant_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "97360bff-33b6-5072-b33b-af0706171fa4",
+              "name": "call_id",
+              "value": "={{ $json.call_id ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "4e265016-9f94-5a15-b89b-a7cd512c18ec",
+              "name": "detalle",
+              "value": "={{ ($json.error && ($json.error.message || $json.error.description)) || \"sin detalle\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        600
+      ],
+      "id": "978b2cdf-62ba-5fa2-bd8c-c7ae0eea49ac",
+      "name": "Datos de la alerta (Supabase)"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 05 Alertas Verantia"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        500
+      ],
+      "id": "90732134-b69a-5f33-8a0b-8f9ae9603178",
+      "name": "Avisar a Verantia"
+    }
+  ],
+  "connections": {
+    "Retell · eventos de llamada": {
+      "main": [
+        [
+          {
+            "node": "Leer petición",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer petición": {
+      "main": [
+        [
+          {
+            "node": "¿Es call_analyzed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es call_analyzed?": {
+      "main": [
+        [
+          {
+            "node": "Supabase · registrar llamada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase · registrar llamada": {
+      "main": [
+        [
+          {
+            "node": "¿Avisar al negocio?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿Algo que revisar?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Datos de la alerta (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Avisar al negocio?": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Algo que revisar?": {
+      "main": [
+        [
+          {
+            "node": "Datos de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Madrid",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

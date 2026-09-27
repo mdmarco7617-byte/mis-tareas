@@ -1,0 +1,542 @@
+{
+  "name": "VOZ · 04 Notificaciones",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "id": "685b35ba-b95d-569e-abd4-87f5af988de0",
+      "name": "Desde otro flujo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d8fe9510-3cc6-509e-a971-2dedeb13be10",
+              "name": "SUPABASE_URL",
+              "value": "https://cvbmsdliucawhzmzyylp.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "4565ec3f-bfc4-5e50-a80f-842b5f429029",
+              "name": "WHATSAPP_API_URL",
+              "value": "https://graph.facebook.com",
+              "type": "string"
+            },
+            {
+              "id": "457a9381-3917-5db5-a7cb-db42722bec35",
+              "name": "WHATSAPP_API_VERSION",
+              "value": "v21.0",
+              "type": "string"
+            },
+            {
+              "id": "5db136e9-5714-5a88-a410-d95b942a185c",
+              "name": "WHATSAPP_PHONE_NUMBER_ID",
+              "value": "REEMPLAZAR_ID_DEL_NUMERO_DE_WHATSAPP",
+              "type": "string"
+            },
+            {
+              "id": "dea48563-97b7-5e9f-8f87-1640f6c3a938",
+              "name": "WHATSAPP_IDIOMA",
+              "value": "es_ES",
+              "type": "string"
+            },
+            {
+              "id": "11154218-9588-50d1-ac09-18a666c95caf",
+              "name": "WHATSAPP_VERANTIA",
+              "value": "+34600000000",
+              "type": "string"
+            },
+            {
+              "id": "622adfd6-8dba-5a17-b078-95423e985ca1",
+              "name": "PLANTILLA_CITA_CONFIRMADA",
+              "value": "verantia_cita_confirmada",
+              "type": "string"
+            },
+            {
+              "id": "4b419dc7-dbc4-5e78-8867-7929f397eff0",
+              "name": "PLANTILLA_CITA_MODIFICADA",
+              "value": "verantia_cita_modificada",
+              "type": "string"
+            },
+            {
+              "id": "5cfb126a-8f9e-5fca-a995-4ee263bb6cfc",
+              "name": "PLANTILLA_CITA_ANULADA",
+              "value": "verantia_cita_anulada",
+              "type": "string"
+            },
+            {
+              "id": "8eb6c206-bfef-5737-9667-5e255d11a2c1",
+              "name": "PLANTILLA_AVISO_NEGOCIO",
+              "value": "verantia_aviso_negocio",
+              "type": "string"
+            },
+            {
+              "id": "6917fd92-3c03-5132-979b-85288f6f720f",
+              "name": "PLANTILLA_ALERTA",
+              "value": "verantia_alerta_tecnica",
+              "type": "string"
+            },
+            {
+              "id": "53d49abc-c0aa-5dbb-b7a1-66f835a2e48a",
+              "name": "TWILIO_API_URL",
+              "value": "https://api.twilio.com",
+              "type": "string"
+            },
+            {
+              "id": "0efd5162-87b0-5a70-bacd-f83778f63c2c",
+              "name": "TWILIO_ACCOUNT_SID",
+              "value": "REEMPLAZAR_ACxxxxxxxx",
+              "type": "string"
+            },
+            {
+              "id": "8d906ade-4fe0-553e-aa1f-7103ac29824a",
+              "name": "SMS_REMITENTE",
+              "value": "Verantia",
+              "type": "string"
+            },
+            {
+              "id": "8297480a-cd45-56fc-8e72-d585e4f9b8d3",
+              "name": "EMAIL_REMITENTE",
+              "value": "citas@verantia.es",
+              "type": "string"
+            },
+            {
+              "id": "247bbb6a-6493-5bbc-ac45-5d9e24bd42e5",
+              "name": "EMAIL_VERANTIA",
+              "value": "alertas@verantia.es",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "id": "79831818-ced6-501b-bdbd-ccbe53951316",
+      "name": "Configuración"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara los mensajes de una notificación (uno por canal y destinatario).\n// Entrada: la \"notificacion\" que devuelve Supabase (fn_voz_tool / fn_voz_event).\n// RGPD: solo los datos imprescindibles; mensajes de servicio (nunca publicidad);\n// el enlace a la política de privacidad del negocio va en los mensajes al cliente.\nconst cfg = $('Configuración').first().json;\nconst salida = [];\n\nconst DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',\n  'septiembre', 'octubre', 'noviembre', 'diciembre'];\nconst fecha = (iso) => {\n  if (!iso) return '';\n  const [y, m, d] = String(iso).split('-').map(Number);\n  return `${DIAS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d} de ${MESES[m - 1]}`;\n};\n// WhatsApp no admite saltos de línea, tabuladores ni parámetros vacíos en las plantillas\nconst p = (v, max = 300) => {\n  const s = String(v ?? '').replace(/[\\r\\n\\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max);\n  return s || '-';\n};\nconst esc = (s) => String(s ?? '').replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\n\nconst wa = (destino, plantilla, parametros, extra = {}) => salida.push({ json: {\n  canal: 'whatsapp', destino, plantilla, idioma: cfg.WHATSAPP_IDIOMA,\n  parametros: parametros.map((x) => p(x)), ...extra,\n} });\nconst sms = (destino, texto, extra = {}) => salida.push({ json: {\n  canal: 'sms', destino, texto: String(texto).slice(0, 320), ...extra,\n} });\nconst email = (destino, asunto, html, responderA) => salida.push({ json: {\n  canal: 'email', destino, asunto, html, responder_a: responderA || cfg.EMAIL_REMITENTE,\n} });\n\nfor (const item of $input.all()) {\n  const n = item.json.notificacion || item.json;\n  // Los datos del negocio llegan con distinta forma según el origen (cita / derivación / fin de llamada)\n  const neg = (n.negocio && typeof n.negocio === 'object') ? n.negocio : {\n    nombre: (n.aviso && n.aviso.negocio) || (typeof n.negocio === 'string' ? n.negocio : ''),\n    whatsapp_avisos: (n.aviso && n.aviso.whatsapp_negocio) || n.whatsapp_negocio || null,\n  };\n  const tipo = n.tipo || (n.avisar_negocio ? 'llamada_no_resuelta' : null);\n  const cli = n.cliente || {};\n  const conf = n.confirmacion || {};\n  const serv = (n.servicio && n.servicio.nombre) || '';\n  const nombreNeg = neg.nombre || n.negocio_nombre || '';\n  const privacidad = n.url_privacidad || '';\n  const telNeg = neg.telefono || '';\n  const quien = n.profesional ? ` con ${n.profesional}` : '';\n  const personas = Number(n.comensales) > 1 ? ` · ${n.comensales} personas` : '';\n  const ctx = { tipo, tenant_id: n.tenant_id || '', call_id: n.call_id || '' };\n\n  // ─── Al cliente ──────────────────────────────────────────────────────────\n  const plantillaCliente = { cita_confirmada: cfg.PLANTILLA_CITA_CONFIRMADA,\n    cita_reprogramada: cfg.PLANTILLA_CITA_MODIFICADA, cita_cancelada: cfg.PLANTILLA_CITA_ANULADA }[tipo];\n  if (plantillaCliente && cli.telefono && conf.canal !== 'ninguno') {\n    const cuando = `${fecha(n.fecha)} a las ${n.hora_inicio}`;\n    let parametros, textoSms, asunto;\n    if (tipo === 'cita_cancelada') {\n      parametros = [cli.nombre, nombreNeg, serv, cuando, telNeg];\n      textoSms = `${nombreNeg}: tu cita de ${serv} del ${cuando} queda anulada. Para pedir otra, llama al ${telNeg}.`;\n      asunto = `Cita anulada · ${nombreNeg}`;\n    } else {\n      parametros = [cli.nombre, nombreNeg, `${serv}${quien}${personas}`, cuando, n.referencia, telNeg, privacidad];\n      const verbo = tipo === 'cita_reprogramada' ? 'se ha cambiado al' : 'está confirmada:';\n      textoSms = `${nombreNeg}: tu cita de ${serv} ${verbo} ${cuando}. Ref. ${n.referencia}. `\n        + `Cambios: ${telNeg}.${privacidad ? ` Privacidad: ${privacidad}` : ''}`;\n      asunto = `${tipo === 'cita_reprogramada' ? 'Cita modificada' : 'Cita confirmada'} · ${nombreNeg}`;\n    }\n\n    if (conf.canal === 'sms') sms(cli.telefono, textoSms, ctx);\n    else if (conf.canal === 'whatsapp') {\n      wa(cli.telefono, plantillaCliente, parametros, { ...ctx, sms_respaldo: conf.sms_respaldo ? textoSms : null });\n    }\n\n    if (cli.email) {\n      const filas = [['Servicio', `${serv}${quien}${personas}`], ['Cuándo', cuando],\n        ...(tipo !== 'cita_cancelada' ? [['Referencia', n.referencia]] : []),\n        ['Dirección', neg.direccion || ''], ['Teléfono', telNeg]]\n        .filter(([, v]) => v).map(([k, v]) => `<tr><td style=\"padding:4px 12px 4px 0;color:#666\">${esc(k)}</td><td><b>${esc(v)}</b></td></tr>`).join('');\n      const html = `<p>Hola ${esc(cli.nombre)},</p><p>${esc(textoSms.replace(/^[^:]+: /, ''))}</p><table>${filas}</table>`\n        + '<p style=\"color:#666;font-size:12px\">Este es un mensaje automático sobre tu cita, enviado porque la solicitaste por teléfono. '\n        + `Responsable del tratamiento: ${esc(nombreNeg)}. Puedes ejercer tus derechos de acceso, rectificación, supresión y demás contactando con el negocio`\n        + `${privacidad ? `; más información en <a href=\"${esc(privacidad)}\">${esc(privacidad)}</a>` : ''}.</p>`;\n      email(cli.email, asunto, html, neg.email_avisos);\n    }\n  }\n\n  // ─── Al negocio (su WhatsApp de avisos) ─────────────────────────────────\n  if (neg.whatsapp_avisos) {\n    const destino = neg.whatsapp_avisos;\n    const telCli = cli.telefono || n.llamante || 'número oculto';\n    const avisos = {\n      cita_confirmada: ['Nueva cita', `${cli.nombre} · ${serv}${quien}${personas} · ${fecha(n.fecha)} ${n.hora_inicio} · ref. ${n.referencia}`, `Teléfono del cliente: ${telCli}`],\n      cita_reprogramada: ['Cita cambiada', `${cli.nombre} · ${serv}${quien} · antes ${fecha(n.anterior && n.anterior.fecha)} ${(n.anterior && n.anterior.hora_inicio) || ''}, ahora ${fecha(n.fecha)} ${n.hora_inicio} · ref. ${n.referencia}`, `Teléfono del cliente: ${telCli}`],\n      cita_cancelada: ['Cita anulada', `${cli.nombre} · ${serv} · ${fecha(n.fecha)} ${n.hora_inicio} · ref. ${n.referencia}`, 'El hueco vuelve a estar libre en la agenda'],\n      derivacion: ['Llamada para el equipo', `Motivo: ${String(n.motivo || '').replace(/_/g, ' ')}. ${n.resumen || ''}`, `Devolver la llamada al ${telCli}`],\n      llamada_no_resuelta: ['Llamada no resuelta', n.resumen || 'Sin resumen disponible', `Devolver la llamada al ${telCli}`],\n    }[tipo];\n    if (avisos) wa(destino, cfg.PLANTILLA_AVISO_NEGOCIO, [nombreNeg, ...avisos], ctx);\n  }\n}\n\nreturn salida;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "fdc4e6f8-6316-5310-9a31-48b8eb6b566c",
+      "name": "Preparar mensajes"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 3,
+        "output": "={{ ({ whatsapp: 0, sms: 1, email: 2 })[$json.canal] ?? 0 }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        660,
+        300
+      ],
+      "id": "6c25a0b9-44b5-5f61-a309-486dac857718",
+      "name": "Por canal"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuración').first().json.WHATSAPP_API_URL + \"/\" + $('Configuración').first().json.WHATSAPP_API_VERSION + \"/\" + $('Configuración').first().json.WHATSAPP_PHONE_NUMBER_ID + \"/messages\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.destino.replace('+', ''), type: 'template', template: { name: $json.plantilla, language: { code: $json.idioma }, components: [{ type: 'body', parameters: $json.parametros.map(t => ({ type: 'text', text: t })) }] } }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ],
+      "id": "29bddfaa-c9b4-5d03-9f77-e8b7e3ec0bb3",
+      "name": "Enviar WhatsApp",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REEMPLAZAR",
+          "name": "WhatsApp · Verantia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuración').first().json.TWILIO_API_URL + \"/2010-04-01/Accounts/\" + $('Configuración').first().json.TWILIO_ACCOUNT_SID + \"/Messages.json\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.destino }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Configuración').first().json.SMS_REMITENTE }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "id": "8372dd40-2a66-57a2-8951-f1e1ebe46469",
+      "name": "Enviar SMS",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REEMPLAZAR",
+          "name": "Twilio · Verantia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Configuración').first().json.EMAIL_REMITENTE }}",
+        "toEmail": "={{ $json.destino }}",
+        "subject": "={{ $json.asunto }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "replyTo": "={{ $json.responder_a }}"
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        500
+      ],
+      "id": "b975c2f1-e44c-56eb-b69c-1dea24a734d0",
+      "name": "Enviar email",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "smtp": {
+          "id": "REEMPLAZAR",
+          "name": "SMTP · Verantia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8e48f1ec-e50e-50a5-8545-ee753ff0987c",
+              "leftValue": "={{ !!$('Por canal').item.json.sms_respaldo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1100,
+        180
+      ],
+      "id": "698073f6-1087-54f0-aa4a-99433104646a",
+      "name": "¿Tiene SMS de respaldo?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b8822410-c544-5b07-b5f3-e9b774aca7f9",
+              "name": "destino",
+              "value": "={{ $('Por canal').item.json.destino }}",
+              "type": "string"
+            },
+            {
+              "id": "99005908-7bf6-55da-b1e7-a28e94f49605",
+              "name": "texto",
+              "value": "={{ $('Por canal').item.json.sms_respaldo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        20
+      ],
+      "id": "6b95e49a-7080-5750-9e29-edefe764b368",
+      "name": "SMS de respaldo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1fdde9d6-4185-5133-a9f7-421f1291f310",
+              "name": "origen",
+              "value": "VOZ · 04 Notificaciones",
+              "type": "string"
+            },
+            {
+              "id": "4ca0f2fc-85da-58d8-b987-461057d5930c",
+              "name": "codigo",
+              "value": "={{ 'ENVIO_FALLIDO_' + ($('Por canal').item.json.canal || '?').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "980298ed-f272-5c0f-ba98-cec4a7872e96",
+              "name": "tenant_id",
+              "value": "={{ $('Por canal').item.json.tenant_id ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "56f3550a-f651-55f8-91ef-0d579df78110",
+              "name": "call_id",
+              "value": "={{ $('Por canal').item.json.call_id ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "8b32909d-b0de-5440-9613-12b34b9096e8",
+              "name": "detalle",
+              "value": "={{ ($json.error && ($json.error.message || $json.error.description)) || \"sin detalle\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        450
+      ],
+      "id": "b8a3aea3-e2bf-56af-b010-c1a15b0e31b0",
+      "name": "Datos de la alerta"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "VOZ · 05 Alertas Verantia"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        450
+      ],
+      "id": "2c96aa5f-82cf-5591-af06-823140894ad3",
+      "name": "Avisar a Verantia"
+    }
+  ],
+  "connections": {
+    "Desde otro flujo": {
+      "main": [
+        [
+          {
+            "node": "Configuración",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuración": {
+      "main": [
+        [
+          {
+            "node": "Preparar mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar mensajes": {
+      "main": [
+        [
+          {
+            "node": "Por canal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Por canal": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [],
+        [
+          {
+            "node": "¿Tiene SMS de respaldo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene SMS de respaldo?": {
+      "main": [
+        [
+          {
+            "node": "SMS de respaldo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Datos de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS de respaldo": {
+      "main": [
+        [
+          {
+            "node": "Enviar SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar SMS": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Datos de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar email": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Datos de la alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de la alerta": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Madrid",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

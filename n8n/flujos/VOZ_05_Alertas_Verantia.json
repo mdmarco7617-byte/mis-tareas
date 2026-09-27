@@ -1,0 +1,281 @@
+{
+  "name": "VOZ · 05 Alertas Verantia",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "id": "d0fd09d5-2a76-517b-a2df-c45d8f34aa87",
+      "name": "Fallo en un flujo VOZ"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ],
+      "id": "0d2c544f-2b83-5529-abc8-04914450a63d",
+      "name": "Desde otro flujo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "335d3b28-3665-5a8e-853b-2f3d09469ba2",
+              "name": "SUPABASE_URL",
+              "value": "https://cvbmsdliucawhzmzyylp.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "b5196eb6-82a7-5b93-8c8c-010d065e8e70",
+              "name": "WHATSAPP_API_URL",
+              "value": "https://graph.facebook.com",
+              "type": "string"
+            },
+            {
+              "id": "4783a379-891a-59a0-bf90-8803eacfdc13",
+              "name": "WHATSAPP_API_VERSION",
+              "value": "v21.0",
+              "type": "string"
+            },
+            {
+              "id": "1d085560-96ea-5475-ac25-683acc16a83d",
+              "name": "WHATSAPP_PHONE_NUMBER_ID",
+              "value": "REEMPLAZAR_ID_DEL_NUMERO_DE_WHATSAPP",
+              "type": "string"
+            },
+            {
+              "id": "8e7bc13a-e49d-5ab0-8c44-246f955eeb42",
+              "name": "WHATSAPP_IDIOMA",
+              "value": "es_ES",
+              "type": "string"
+            },
+            {
+              "id": "d790f307-fa77-569d-b76e-c462230df80f",
+              "name": "WHATSAPP_VERANTIA",
+              "value": "+34600000000",
+              "type": "string"
+            },
+            {
+              "id": "48a8c172-b91e-5713-ab67-be43ec61414d",
+              "name": "PLANTILLA_CITA_CONFIRMADA",
+              "value": "verantia_cita_confirmada",
+              "type": "string"
+            },
+            {
+              "id": "ccd88aad-d11b-5d62-9038-c0b7b94e4215",
+              "name": "PLANTILLA_CITA_MODIFICADA",
+              "value": "verantia_cita_modificada",
+              "type": "string"
+            },
+            {
+              "id": "85f44a52-367f-5672-8f45-f5045534e4d1",
+              "name": "PLANTILLA_CITA_ANULADA",
+              "value": "verantia_cita_anulada",
+              "type": "string"
+            },
+            {
+              "id": "8e9c2a58-bcaa-5fdb-b07e-f549f68f8959",
+              "name": "PLANTILLA_AVISO_NEGOCIO",
+              "value": "verantia_aviso_negocio",
+              "type": "string"
+            },
+            {
+              "id": "1b314d05-ed7c-5381-a4db-dda1d64e8fb4",
+              "name": "PLANTILLA_ALERTA",
+              "value": "verantia_alerta_tecnica",
+              "type": "string"
+            },
+            {
+              "id": "a645d8fa-0975-5ad5-90c7-febe627e4766",
+              "name": "TWILIO_API_URL",
+              "value": "https://api.twilio.com",
+              "type": "string"
+            },
+            {
+              "id": "51403fde-ae3b-53c0-a40e-8ee3bfec63db",
+              "name": "TWILIO_ACCOUNT_SID",
+              "value": "REEMPLAZAR_ACxxxxxxxx",
+              "type": "string"
+            },
+            {
+              "id": "1a50afc9-9f6c-5553-a8bc-311ab2801f15",
+              "name": "SMS_REMITENTE",
+              "value": "Verantia",
+              "type": "string"
+            },
+            {
+              "id": "8c1c831c-2c52-5619-978f-07a3c8e45eae",
+              "name": "EMAIL_REMITENTE",
+              "value": "citas@verantia.es",
+              "type": "string"
+            },
+            {
+              "id": "5876bc49-4dae-5e05-b6c5-8773f6103484",
+              "name": "EMAIL_VERANTIA",
+              "value": "alertas@verantia.es",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "id": "7575088a-c635-5fb5-8d4f-5dfafc9094ed",
+      "name": "Configuración"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara la alerta técnica para Verantia. SIN datos personales: se eliminan teléfonos,\n// emails y textos largos. Evita el \"spam\" de alertas: la misma alerta no se repite en\n// 10 minutos (24 h para el aviso de exceso de minutos).\nconst cfg = $('Configuración').first().json;\nconst estado = $getWorkflowStaticData('global');\nestado.ultimas = estado.ultimas || {};\nconst ahora = Date.now();\n\nconst limpiar = (v, max = 200) => String(v ?? '')\n  .replace(/[\\w.+-]+@[\\w-]+\\.[\\w.]+/g, '[email]')\n  .replace(/\\+?\\d[\\d\\s().-]{7,}\\d/g, '[teléfono]')\n  .replace(/[\\r\\n\\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max) || '-';\n\n// Limpia claves antiguas para que el estado no crezca\nfor (const [k, ts] of Object.entries(estado.ultimas)) if (ahora - ts > 86400000) delete estado.ultimas[k];\n\nconst salida = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  let origen, codigo, detalle;\n  if (j.execution && j.workflow) {            // Error Trigger: un flujo ha fallado\n    origen = `n8n · ${j.workflow.name || j.workflow.id}`;\n    codigo = `FALLO_EN_NODO ${j.execution.lastNodeExecuted || ''}`.trim();\n    detalle = `${(j.execution.error && j.execution.error.message) || 'sin mensaje'} · ejecución ${j.execution.id || '-'}`;\n  } else {                                     // Alerta explícita desde otro flujo\n    origen = j.origen || 'desconocido';\n    codigo = j.codigo || 'SIN_CODIGO';\n    detalle = [j.tenant_id && `negocio ${j.tenant_id}`, j.call_id && `llamada ${j.call_id}`, j.detalle]\n      .filter(Boolean).join(' · ');\n  }\n  origen = limpiar(origen, 80); codigo = limpiar(codigo, 80); detalle = limpiar(detalle);\n\n  const clave = `${origen}|${codigo}|${j.tenant_id || ''}`;\n  const ventana = codigo.includes('EXCESO_MINUTOS') ? 86400000 : 600000;\n  if (estado.ultimas[clave] && ahora - estado.ultimas[clave] < ventana) continue;\n  estado.ultimas[clave] = ahora;\n\n  salida.push({ json: {\n    canal: 'whatsapp', destino: cfg.WHATSAPP_VERANTIA, plantilla: cfg.PLANTILLA_ALERTA,\n    idioma: cfg.WHATSAPP_IDIOMA, parametros: [origen, codigo, detalle],\n    email_respaldo: cfg.EMAIL_VERANTIA,\n    texto: `Origen: ${origen}\\nCódigo: ${codigo}\\nDetalle: ${detalle}`,\n  } });\n}\nreturn salida;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "26d68e26-1dcd-5698-a693-e38c768bd5d1",
+      "name": "Preparar alerta (sin datos personales)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuración').first().json.WHATSAPP_API_URL + \"/\" + $('Configuración').first().json.WHATSAPP_API_VERSION + \"/\" + $('Configuración').first().json.WHATSAPP_PHONE_NUMBER_ID + \"/messages\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.destino.replace('+', ''), type: 'template', template: { name: $json.plantilla, language: { code: $json.idioma }, components: [{ type: 'body', parameters: $json.parametros.map(t => ({ type: 'text', text: t })) }] } }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "id": "43ce43e4-5f59-5a8c-9ef9-dc8ca39a2781",
+      "name": "Enviar WhatsApp a Verantia",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REEMPLAZAR",
+          "name": "WhatsApp · Verantia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Configuración').first().json.EMAIL_REMITENTE }}",
+        "toEmail": "={{ $('Preparar alerta (sin datos personales)').item.json.email_respaldo }}",
+        "subject": "Alerta Verantia Voz (WhatsApp no disponible)",
+        "emailFormat": "text",
+        "text": "={{ $('Preparar alerta (sin datos personales)').item.json.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        400
+      ],
+      "id": "fa6f3a5b-3870-5cad-a33c-fdf9ac560a36",
+      "name": "Email de respaldo a Verantia",
+      "credentials": {
+        "smtp": {
+          "id": "REEMPLAZAR",
+          "name": "SMTP · Verantia"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Fallo en un flujo VOZ": {
+      "main": [
+        [
+          {
+            "node": "Configuración",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desde otro flujo": {
+      "main": [
+        [
+          {
+            "node": "Configuración",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuración": {
+      "main": [
+        [
+          {
+            "node": "Preparar alerta (sin datos personales)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar alerta (sin datos personales)": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp a Verantia": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Email de respaldo a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Madrid",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

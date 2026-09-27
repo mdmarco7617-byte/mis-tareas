@@ -1,0 +1,1 @@
+{"ok": true, "call_id": "fx-ev", "negocio": "Peluquería Demo", "resumen": "Preguntó el precio de las mechas y quería saber si hay parking.", "escalada": false, "llamante": "+34600888003", "tenant_id": "11111111-1111-1111-1111-111111111111", "minutos_mes": 7, "avisar_negocio": true, "exceso_minutos": false, "whatsapp_negocio": "+34600000001", "minutos_incluidos": null}
