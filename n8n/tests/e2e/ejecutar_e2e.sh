@@ -24,7 +24,7 @@ rm -rf "$TRABAJO" && mkdir -p "$TRABAJO"
 $P -c "delete from vault.secretos_locales; insert into vault.secretos_locales values ('retell_api_key', '$KEY'); delete from error_log;"
 LUNES=$($P -c "select current_date + 36 + ((8 - extract(isodow from current_date + 36)::int) % 7)")
 $P -c "delete from holidays where fecha = '$LUNES'"
-VOZ_SALIDA="$TRABAJO/generados" VOZ_PRUEBAS='{"SUPABASE_URL":"http://127.0.0.1:54321","WHATSAPP_API_URL":"http://127.0.0.1:54322","TWILIO_API_URL":"http://127.0.0.1:54322","TWILIO_ACCOUNT_SID":"ACprueba","WHATSAPP_PHONE_NUMBER_ID":"123456","WHATSAPP_VERANTIA":"+34600000000"}' \
+VOZ_SALIDA="$TRABAJO/generados" VOZ_PRUEBAS='{"WHATSAPP_ACTIVO":"sí","SMS_ACTIVO":"sí","EMAIL_ACTIVO":"sí","SUPABASE_URL":"http://127.0.0.1:54321","WHATSAPP_API_URL":"http://127.0.0.1:54322","TWILIO_API_URL":"http://127.0.0.1:54322","TWILIO_ACCOUNT_SID":"ACprueba","WHATSAPP_PHONE_NUMBER_ID":"123456","WHATSAPP_VERANTIA":"+34600000000"}' \
   python3 "$RAIZ/n8n/construir_flujos.py" > /dev/null
 python3 preparar_import.py "$TRABAJO/generados" "$TRABAJO/importar/flujos"
 ln -sfn "$N8N_DIR/node_modules" "$TRABAJO/node_modules"; cp simuladores.mjs "$TRABAJO/"

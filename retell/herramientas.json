@@ -1,0 +1,178 @@
+[
+  {
+    "type": "custom",
+    "name": "check_availability",
+    "description": "Comprueba si hay hueco para un servicio en un día y hora concretos. Úsala en cuanto sepas servicio, día y hora, y siempre antes de reservar.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "check_availability", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras miras la agenda, por ejemplo: un momento, que lo miro.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "servicio": {"type": "string", "description": "Código del servicio del catálogo (lo que va antes de los dos puntos)."},
+        "fecha": {"type": "string", "description": "Día en formato AAAA-MM-DD, sacado del calendario."},
+        "hora": {"type": "string", "description": "Hora de inicio en formato HH:MM de 24 horas."},
+        "profesional": {"type": "string", "description": "Solo si el cliente pide un profesional concreto."},
+        "comensales": {"type": "integer", "description": "Solo restaurantes: número de personas."}
+      },
+      "required": ["servicio", "fecha", "hora"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "get_available_slots",
+    "description": "Devuelve los huecos libres de un servicio en un día o rango de días (máximo 14). Úsala cuando el cliente pregunte qué disponibilidad hay.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "get_available_slots", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras miras la agenda.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "servicio": {"type": "string", "description": "Código del servicio del catálogo."},
+        "fecha_inicio": {"type": "string", "description": "Primer día, AAAA-MM-DD."},
+        "fecha_fin": {"type": "string", "description": "Último día, AAAA-MM-DD. Omítelo para un solo día."},
+        "franja": {"type": "string", "enum": ["manana", "tarde"], "description": "Solo si el cliente dice mañana o tarde."},
+        "profesional": {"type": "string", "description": "Solo si el cliente pide un profesional concreto."},
+        "comensales": {"type": "integer", "description": "Solo restaurantes: número de personas."}
+      },
+      "required": ["servicio", "fecha_inicio"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "create_appointment",
+    "description": "Reserva la cita. Úsala SOLO después de que check_availability devuelva DISPONIBLE y el cliente confirme con un sí.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "create_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras reservas, por ejemplo: perfecto, te la reservo.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "servicio": {"type": "string", "description": "Código del servicio del catálogo."},
+        "fecha": {"type": "string", "description": "AAAA-MM-DD."},
+        "hora": {"type": "string", "description": "HH:MM de 24 horas."},
+        "nombre": {"type": "string", "description": "Nombre de la persona que vendrá."},
+        "telefono": {"type": "string", "description": "Solo si llama con número oculto o pide que sea otro número. Cifra a cifra, sin espacios."},
+        "email": {"type": "string", "description": "Solo si el cliente lo pide expresamente, deletreado y confirmado."},
+        "profesional": {"type": "string", "description": "Solo si el cliente pidió un profesional concreto."},
+        "comensales": {"type": "integer", "description": "Solo restaurantes: número de personas."},
+        "notas": {"type": "string", "description": "Solo algo útil para el negocio. NUNCA datos de salud."}
+      },
+      "required": ["servicio", "fecha", "hora", "nombre"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "find_appointments",
+    "description": "Busca las próximas citas del cliente. Primero sin argumentos (busca por su número); si no aparece nada, con nombre y fecha de la cita.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "find_appointments", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras buscas.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "nombre": {"type": "string", "description": "Nombre con el que se hizo la cita (solo en la segunda búsqueda)."},
+        "fecha": {"type": "string", "description": "Día de la cita, AAAA-MM-DD (solo en la segunda búsqueda)."},
+        "telefono": {"type": "string", "description": "Solo si llama con número oculto."}
+      }
+    }
+  },
+  {
+    "type": "custom",
+    "name": "cancel_appointment",
+    "description": "Anula una cita. Úsala solo cuando el cliente haya confirmado que quiere anularla.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "cancel_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras la anulas.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "referencia": {"type": "string", "description": "Referencia de 6 dígitos."},
+        "nombre": {"type": "string", "description": "Nombre del cliente, por si llama desde otro número."}
+      },
+      "required": ["referencia"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "reschedule_appointment",
+    "description": "Cambia una cita a otro día u hora. Úsala cuando el cliente haya elegido el nuevo día y hora.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "reschedule_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": true,
+    "execution_message_description": "Una frase muy corta mientras la cambias.",
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "referencia": {"type": "string", "description": "Referencia de 6 dígitos."},
+        "fecha": {"type": "string", "description": "Nuevo día, AAAA-MM-DD."},
+        "hora": {"type": "string", "description": "Nueva hora, HH:MM de 24 horas."},
+        "servicio": {"type": "string", "description": "Solo si también cambia de servicio (código del catálogo)."},
+        "profesional": {"type": "string", "description": "Solo si pide un profesional concreto."},
+        "nombre": {"type": "string", "description": "Nombre del cliente, por si llama desde otro número."}
+      },
+      "required": ["referencia", "fecha", "hora"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "escalate_to_human",
+    "description": "Registra que el cliente necesita al equipo y avisa al negocio. Indica si ahora se puede transferir la llamada.",
+    "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
+    "method": "POST",
+    "headers": {"x-herramienta": "escalate_to_human", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
+    "args_at_root": true,
+    "speak_during_execution": false,
+    "speak_after_execution": true,
+    "timeout_ms": 8000,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "motivo": {"type": "string", "enum": ["cliente_lo_pide", "queja", "fuera_de_alcance", "no_entiendo", "grupo_grande", "otro"]},
+        "resumen": {"type": "string", "description": "Una o dos frases para el equipo. Sin datos de salud."}
+      },
+      "required": ["motivo", "resumen"]
+    }
+  },
+  {
+    "type": "transfer_call",
+    "name": "transfer_call",
+    "description": "Pasa la llamada al equipo. Úsala solo si escalate_to_human devolvió transferencia_disponible = true.",
+    "transfer_destination": {"type": "predefined", "number": "{{telefono_transferencia}}"},
+    "transfer_option": {"type": "cold_transfer"}
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "Cuelga cuando el cliente se haya despedido o no necesite nada más."
+  }
+]

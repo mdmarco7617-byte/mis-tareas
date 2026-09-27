@@ -4,6 +4,9 @@
 // el enlace a la política de privacidad del negocio va en los mensajes al cliente.
 const cfg = $('Configuración').first().json;
 const salida = [];
+// Interruptores (nodo Configuración): un canal sin configurar no se usa y no genera alertas
+const activo = (v) => ['sí', 'si', 'true', '1', 'yes'].includes(String(v ?? '').trim().toLowerCase());
+const WA = activo(cfg.WHATSAPP_ACTIVO), SMS = activo(cfg.SMS_ACTIVO), EMAIL = activo(cfg.EMAIL_ACTIVO);
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
@@ -67,12 +70,16 @@ for (const item of $input.all()) {
       asunto = `${tipo === 'cita_reprogramada' ? 'Cita modificada' : 'Cita confirmada'} · ${nombreNeg}`;
     }
 
-    if (conf.canal === 'sms') sms(cli.telefono, textoSms, ctx);
-    else if (conf.canal === 'whatsapp') {
-      wa(cli.telefono, plantillaCliente, parametros, { ...ctx, sms_respaldo: conf.sms_respaldo ? textoSms : null });
+    // Canal elegido por el negocio; si está apagado se usa el otro canal de móvil si está encendido
+    if (conf.canal === 'whatsapp' && WA) {
+      wa(cli.telefono, plantillaCliente, parametros, { ...ctx, sms_respaldo: conf.sms_respaldo && SMS ? textoSms : null });
+    } else if ((conf.canal === 'sms' || conf.canal === 'whatsapp') && SMS) {
+      sms(cli.telefono, textoSms, ctx);
+    } else if (conf.canal === 'sms' && WA) {
+      wa(cli.telefono, plantillaCliente, parametros, ctx);
     }
 
-    if (cli.email) {
+    if (cli.email && EMAIL) {
       const filas = [['Servicio', `${serv}${quien}${personas}`], ['Cuándo', cuando],
         ...(tipo !== 'cita_cancelada' ? [['Referencia', n.referencia]] : []),
         ['Dirección', neg.direccion || ''], ['Teléfono', telNeg]]
@@ -86,8 +93,8 @@ for (const item of $input.all()) {
   }
 
   // ─── Al negocio (su WhatsApp de avisos) ─────────────────────────────────
-  if (neg.whatsapp_avisos) {
-    const destino = neg.whatsapp_avisos;
+  const emailNeg = neg.email_avisos || (n.aviso && n.aviso.email_negocio) || null;
+  if ((neg.whatsapp_avisos && WA) || (emailNeg && EMAIL)) {
     const telCli = cli.telefono || n.llamante || 'número oculto';
     const avisos = {
       cita_confirmada: ['Nueva cita', `${cli.nombre} · ${serv}${quien}${personas} · ${fecha(n.fecha)} ${n.hora_inicio} · ref. ${n.referencia}`, `Teléfono del cliente: ${telCli}`],
@@ -96,7 +103,13 @@ for (const item of $input.all()) {
       derivacion: ['Llamada para el equipo', `Motivo: ${String(n.motivo || '').replace(/_/g, ' ')}. ${n.resumen || ''}`, `Devolver la llamada al ${telCli}`],
       llamada_no_resuelta: ['Llamada no resuelta', n.resumen || 'Sin resumen disponible', `Devolver la llamada al ${telCli}`],
     }[tipo];
-    if (avisos) wa(destino, cfg.PLANTILLA_AVISO_NEGOCIO, [nombreNeg, ...avisos], ctx);
+    if (avisos && neg.whatsapp_avisos && WA) {
+      wa(neg.whatsapp_avisos, cfg.PLANTILLA_AVISO_NEGOCIO, [nombreNeg, ...avisos], ctx);
+    } else if (avisos && emailNeg && EMAIL) {
+      const html = `<p><b>${esc(avisos[0])}</b></p><p>${esc(avisos[1])}</p><p>${esc(avisos[2])}</p>`
+        + '<p style="color:#666;font-size:12px">Aviso automático de tu asistente telefónico (Verantia).</p>';
+      email(emailNeg, `${avisos[0]} · ${nombreNeg}`, html, cfg.EMAIL_REMITENTE);
+    }
   }
 }
 

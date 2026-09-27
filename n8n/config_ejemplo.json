@@ -1,4 +1,7 @@
 {
+  "WHATSAPP_ACTIVO": "no",
+  "SMS_ACTIVO": "no",
+  "EMAIL_ACTIVO": "no",
   "SUPABASE_URL": "https://cvbmsdliucawhzmzyylp.supabase.co",
   "WHATSAPP_API_URL": "https://graph.facebook.com",
   "WHATSAPP_API_VERSION": "v21.0",

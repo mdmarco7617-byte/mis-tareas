@@ -28,6 +28,24 @@
         "assignments": {
           "assignments": [
             {
+              "id": "16e125cc-1588-5a60-8880-738f4706c412",
+              "name": "WHATSAPP_ACTIVO",
+              "value": "no",
+              "type": "string"
+            },
+            {
+              "id": "4a1843eb-f1d6-5cf8-a031-3681a9af24ae",
+              "name": "SMS_ACTIVO",
+              "value": "no",
+              "type": "string"
+            },
+            {
+              "id": "1778e602-30ca-5369-b299-5bebf38283fd",
+              "name": "EMAIL_ACTIVO",
+              "value": "no",
+              "type": "string"
+            },
+            {
               "id": "335d3b28-3665-5a8e-853b-2f3d09469ba2",
               "name": "SUPABASE_URL",
               "value": "https://cvbmsdliucawhzmzyylp.supabase.co",
@@ -139,7 +157,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepara la alerta técnica para Verantia. SIN datos personales: se eliminan teléfonos,\n// emails y textos largos. Evita el \"spam\" de alertas: la misma alerta no se repite en\n// 10 minutos (24 h para el aviso de exceso de minutos).\nconst cfg = $('Configuración').first().json;\nconst estado = $getWorkflowStaticData('global');\nestado.ultimas = estado.ultimas || {};\nconst ahora = Date.now();\n\nconst limpiar = (v, max = 200) => String(v ?? '')\n  .replace(/[\\w.+-]+@[\\w-]+\\.[\\w.]+/g, '[email]')\n  .replace(/\\+?\\d[\\d\\s().-]{7,}\\d/g, '[teléfono]')\n  .replace(/[\\r\\n\\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max) || '-';\n\n// Limpia claves antiguas para que el estado no crezca\nfor (const [k, ts] of Object.entries(estado.ultimas)) if (ahora - ts > 86400000) delete estado.ultimas[k];\n\nconst salida = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  let origen, codigo, detalle;\n  if (j.execution && j.workflow) {            // Error Trigger: un flujo ha fallado\n    origen = `n8n · ${j.workflow.name || j.workflow.id}`;\n    codigo = `FALLO_EN_NODO ${j.execution.lastNodeExecuted || ''}`.trim();\n    detalle = `${(j.execution.error && j.execution.error.message) || 'sin mensaje'} · ejecución ${j.execution.id || '-'}`;\n  } else {                                     // Alerta explícita desde otro flujo\n    origen = j.origen || 'desconocido';\n    codigo = j.codigo || 'SIN_CODIGO';\n    detalle = [j.tenant_id && `negocio ${j.tenant_id}`, j.call_id && `llamada ${j.call_id}`, j.detalle]\n      .filter(Boolean).join(' · ');\n  }\n  origen = limpiar(origen, 80); codigo = limpiar(codigo, 80); detalle = limpiar(detalle);\n\n  const clave = `${origen}|${codigo}|${j.tenant_id || ''}`;\n  const ventana = codigo.includes('EXCESO_MINUTOS') ? 86400000 : 600000;\n  if (estado.ultimas[clave] && ahora - estado.ultimas[clave] < ventana) continue;\n  estado.ultimas[clave] = ahora;\n\n  salida.push({ json: {\n    canal: 'whatsapp', destino: cfg.WHATSAPP_VERANTIA, plantilla: cfg.PLANTILLA_ALERTA,\n    idioma: cfg.WHATSAPP_IDIOMA, parametros: [origen, codigo, detalle],\n    email_respaldo: cfg.EMAIL_VERANTIA,\n    texto: `Origen: ${origen}\\nCódigo: ${codigo}\\nDetalle: ${detalle}`,\n  } });\n}\nreturn salida;\n"
+        "jsCode": "// Prepara la alerta técnica para Verantia. SIN datos personales: se eliminan teléfonos,\n// emails y textos largos. Evita el \"spam\" de alertas: la misma alerta no se repite en\n// 10 minutos (24 h para el aviso de exceso de minutos).\nconst cfg = $('Configuración').first().json;\nconst estado = $getWorkflowStaticData('global');\nestado.ultimas = estado.ultimas || {};\nconst ahora = Date.now();\n\nconst limpiar = (v, max = 200) => String(v ?? '')\n  .replace(/[\\w.+-]+@[\\w-]+\\.[\\w.]+/g, '[email]')\n  .replace(/\\+?\\d[\\d\\s().-]{7,}\\d/g, '[teléfono]')\n  .replace(/[\\r\\n\\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max) || '-';\n\n// Limpia claves antiguas para que el estado no crezca\nfor (const [k, ts] of Object.entries(estado.ultimas)) if (ahora - ts > 86400000) delete estado.ultimas[k];\n\nconst salida = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  let origen, codigo, detalle;\n  if (j.execution && j.workflow) {            // Error Trigger: un flujo ha fallado\n    origen = `n8n · ${j.workflow.name || j.workflow.id}`;\n    codigo = `FALLO_EN_NODO ${j.execution.lastNodeExecuted || ''}`.trim();\n    detalle = `${(j.execution.error && j.execution.error.message) || 'sin mensaje'} · ejecución ${j.execution.id || '-'}`;\n  } else {                                     // Alerta explícita desde otro flujo\n    origen = j.origen || 'desconocido';\n    codigo = j.codigo || 'SIN_CODIGO';\n    detalle = [j.tenant_id && `negocio ${j.tenant_id}`, j.call_id && `llamada ${j.call_id}`, j.detalle]\n      .filter(Boolean).join(' · ');\n  }\n  origen = limpiar(origen, 80); codigo = limpiar(codigo, 80); detalle = limpiar(detalle);\n\n  const clave = `${origen}|${codigo}|${j.tenant_id || ''}`;\n  const ventana = codigo.includes('EXCESO_MINUTOS') ? 86400000 : 600000;\n  if (estado.ultimas[clave] && ahora - estado.ultimas[clave] < ventana) continue;\n  estado.ultimas[clave] = ahora;\n\n  const porWhatsapp = ['sí', 'si', 'true', '1', 'yes'].includes(String(cfg.WHATSAPP_ACTIVO ?? '').trim().toLowerCase());\n  salida.push({ json: {\n    canal: porWhatsapp ? 'whatsapp' : 'email', destino: cfg.WHATSAPP_VERANTIA, plantilla: cfg.PLANTILLA_ALERTA,\n    idioma: cfg.WHATSAPP_IDIOMA, parametros: [origen, codigo, detalle],\n    email_respaldo: cfg.EMAIL_VERANTIA,\n    texto: `Origen: ${origen}\\nCódigo: ${codigo}\\nDetalle: ${detalle}`,\n  } });\n}\nreturn salida;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -166,8 +184,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
-        300
+        770,
+        220
       ],
       "id": "43ce43e4-5f59-5a8c-9ef9-dc8ca39a2781",
       "name": "Enviar WhatsApp a Verantia",
@@ -183,7 +201,7 @@
       "parameters": {
         "fromEmail": "={{ $('Configuración').first().json.EMAIL_REMITENTE }}",
         "toEmail": "={{ $('Preparar alerta (sin datos personales)').item.json.email_respaldo }}",
-        "subject": "Alerta Verantia Voz (WhatsApp no disponible)",
+        "subject": "Alerta técnica · Verantia Voz",
         "emailFormat": "text",
         "text": "={{ $('Preparar alerta (sin datos personales)').item.json.texto }}",
         "options": {
@@ -193,8 +211,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        880,
-        400
+        990,
+        380
       ],
       "id": "fa6f3a5b-3870-5cad-a33c-fdf9ac560a36",
       "name": "Email de respaldo a Verantia",
@@ -204,6 +222,41 @@
           "name": "SMTP · Verantia"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2a6f33bf-5917-5a29-b591-7509139f08c5",
+              "leftValue": "={{ $json.canal === \"whatsapp\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        550,
+        300
+      ],
+      "id": "58962c57-ccab-5796-a038-f798419205a3",
+      "name": "¿Por WhatsApp?"
     }
   ],
   "connections": {
@@ -244,7 +297,25 @@
       "main": [
         [
           {
+            "node": "¿Por WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Por WhatsApp?": {
+      "main": [
+        [
+          {
             "node": "Enviar WhatsApp a Verantia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email de respaldo a Verantia",
             "type": "main",
             "index": 0
           }

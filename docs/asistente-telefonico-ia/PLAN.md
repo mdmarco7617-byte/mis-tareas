@@ -394,6 +394,12 @@ El modelo de datos (§5) ya está pensado para esto desde el principio, no es un
   - El prompt de voz: vocabulario del sector (tratamientos/servicios vs. platos/menú/alérgenos) y alguna pregunta extra en restaurante (número de comensales, si hay alguna alergia — sin registrar el detalle, solo derivarlo a nota para el negocio).
 - **Coste de adaptar a un restaurante una vez montado el sistema para estética**: ese cambio de configuración + ajustar el prompt, no reconstruir nada. Un par de días, no semanas.
 
+### Decisiones tomadas (27/09/2026, 2ª ronda)
+- **n8n**: en el VPS de Hostinger del usuario (versión 2.22.5).
+- **WhatsApp**: en principio un número por negocio (con número común de Verantia como alternativa); se implementa en la fase de confirmaciones.
+- **Email**: Resend (ya disponible). Twilio y WhatsApp Cloud API: al final.
+- **Orden**: primero toda la parte técnica y la gestión de citas; las confirmaciones al cliente, lo último. Mientras tanto los canales están apagados con interruptores y las alertas técnicas llegan por email.
+
 ### Pendiente para seguir
 - Confirmar proveedor de números (#2) cuando quieras — no bloquea empezar con la base de datos.
 - Elegir el negocio concreto del piloto en Valladolid (estética o peluquería) para tener datos reales con los que probar el prompt.

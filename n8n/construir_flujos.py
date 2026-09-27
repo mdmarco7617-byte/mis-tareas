@@ -293,17 +293,20 @@ f.nodo('Enviar WhatsApp a Verantia', 'n8n-nodes-base.httpRequest', 4.2, {
     'jsonBody': "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.destino.replace('+', ''), type: 'template', "
                 "template: { name: $json.plantilla, language: { code: $json.idioma }, components: [{ type: 'body', "
                 "parameters: $json.parametros.map(t => ({ type: 'text', text: t })) }] } }) }}",
-    'options': {'timeout': 10000}}, (660, 300), onError='continueErrorOutput', credentials=CRED_WHATSAPP)
+    'options': {'timeout': 10000}}, (770, 220), onError='continueErrorOutput', credentials=CRED_WHATSAPP)
 f.nodo('Email de respaldo a Verantia', 'n8n-nodes-base.emailSend', 2.1, {
     'fromEmail': f'={{{{ {cfg}.EMAIL_REMITENTE }}}}',
     'toEmail': "={{ $('Preparar alerta (sin datos personales)').item.json.email_respaldo }}",
-    'subject': 'Alerta Verantia Voz (WhatsApp no disponible)', 'emailFormat': 'text',
+    'subject': 'Alerta técnica · Verantia Voz', 'emailFormat': 'text',
     'text': "={{ $('Preparar alerta (sin datos personales)').item.json.texto }}",
-    'options': {'appendAttribution': False}}, (880, 400), credentials=CRED_SMTP)
+    'options': {'appendAttribution': False}}, (990, 380), credentials=CRED_SMTP)
 f.unir('Fallo en un flujo VOZ', 'Configuración')
 f.unir('Desde otro flujo', 'Configuración')
 f.unir('Configuración', 'Preparar alerta (sin datos personales)')
-f.unir('Preparar alerta (sin datos personales)', 'Enviar WhatsApp a Verantia')
+si(f, '¿Por WhatsApp?', '={{ $json.canal === "whatsapp" }}', (550, 300))
+f.unir('Preparar alerta (sin datos personales)', '¿Por WhatsApp?')
+f.unir('¿Por WhatsApp?', 'Enviar WhatsApp a Verantia', 0)
+f.unir('¿Por WhatsApp?', 'Email de respaldo a Verantia', 1)
 f.unir('Enviar WhatsApp a Verantia', 'Email de respaldo a Verantia', 1)
 flujos.append(f)
 

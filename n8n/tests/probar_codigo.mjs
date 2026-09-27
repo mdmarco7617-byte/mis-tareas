@@ -11,10 +11,14 @@ const src = (f) => readFileSync(join(aqui, '..', 'src', f), 'utf8');
 const fx = (f) => JSON.parse(readFileSync(join(aqui, 'fixtures', f), 'utf8'));
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
-const CONFIG = JSON.parse(readFileSync(join(aqui, '..', 'config_ejemplo.json'), 'utf8'));
+const CONFIG_BASE = JSON.parse(readFileSync(join(aqui, '..', 'config_ejemplo.json'), 'utf8'));
+// Por defecto las pruebas encienden los tres canales; cada prueba puede apagarlos
+const TODO_ENCENDIDO = { WHATSAPP_ACTIVO: 'sí', SMS_ACTIVO: 'sí', EMAIL_ACTIVO: 'sí' };
+let CONFIG = { ...CONFIG_BASE, ...TODO_ENCENDIDO };
 const estadoGlobal = {};
 
-async function ejecutar(fichero, items, { binarios = {} } = {}) {
+async function ejecutar(fichero, items, { binarios = {}, config } = {}) {
+  CONFIG = { ...CONFIG_BASE, ...TODO_ENCENDIDO, ...(config || {}) };
   const $input = { first: () => items[0], all: () => items };
   const $ = (nodo) => {
     if (nodo !== 'Configuración') throw new Error(`nodo desconocido ${nodo}`);
@@ -160,6 +164,28 @@ await prueba('mensajes: canal "ninguno" → nada al cliente, solo al negocio', a
   assert.deepEqual(out.map((o) => o.json.destino), ['+34600000001']);
 });
 
+await prueba('interruptores: configuración de ejemplo = todo apagado → no se envía nada', async () => {
+  const out = await ejecutar('preparar_mensajes.js', [{ json: fx('tool_confirmado.json') }],
+    { config: { WHATSAPP_ACTIVO: CONFIG_BASE.WHATSAPP_ACTIVO, SMS_ACTIVO: CONFIG_BASE.SMS_ACTIVO, EMAIL_ACTIVO: CONFIG_BASE.EMAIL_ACTIVO } });
+  assert.equal(out.length, 0);
+});
+await prueba('interruptores: solo email (Resend) → email al cliente y aviso al negocio por email', async () => {
+  const n = structuredClone(fx('tool_confirmado.json'));
+  n.notificacion.negocio.email_avisos = 'negocio@example.com';
+  const out = await ejecutar('preparar_mensajes.js', [{ json: n }], { config: { WHATSAPP_ACTIVO: 'no', SMS_ACTIVO: 'no' } });
+  assert.deepEqual(out.map((o) => `${o.json.canal}:${o.json.destino}`), ['email:ana@example.com', 'email:negocio@example.com']);
+  assert.match(out[1].json.asunto, /^Nueva cita · Peluquería Demo$/);
+});
+await prueba('interruptores: WhatsApp apagado y SMS encendido → SMS al cliente', async () => {
+  const out = await ejecutar('preparar_mensajes.js', [{ json: fx('tool_confirmado.json') }], { config: { WHATSAPP_ACTIVO: 'no', EMAIL_ACTIVO: 'no' } });
+  assert.deepEqual(out.map((o) => o.json.canal), ['sms']);
+});
+await prueba('interruptores: SMS apagado → WhatsApp sin SMS de respaldo', async () => {
+  const out = await ejecutar('preparar_mensajes.js', [{ json: fx('tool_confirmado.json') }], { config: { SMS_ACTIVO: 'no' } });
+  assert.equal(out[0].json.canal, 'whatsapp');
+  assert.equal(out[0].json.sms_respaldo, null);
+});
+
 // ─── preparar_alerta ───────────────────────────────────────────────────────
 await prueba('alerta: sin datos personales aunque el error los contenga', async () => {
   const out = await ejecutar('preparar_alerta.js', [{ json: {
@@ -168,6 +194,11 @@ await prueba('alerta: sin datos personales aunque el error los contenga', async 
   assert.equal(out.length, 1);
   sinPII(out[0].json.parametros.join(' '));
   assert.match(out[0].json.parametros[2], /\[teléfono\].*\[email\]/);
+});
+await prueba('alerta: con WhatsApp apagado va por email (Resend)', async () => {
+  const out = await ejecutar('preparar_alerta.js', [{ json: { origen: 'prueba', codigo: 'CANAL_EMAIL' } }], { config: { WHATSAPP_ACTIVO: 'no' } });
+  assert.equal(out[0].json.canal, 'email');
+  assert.equal(out[0].json.email_respaldo, CONFIG_BASE.EMAIL_VERANTIA);
 });
 await prueba('alerta: la misma alerta no se repite en 10 minutos', async () => {
   const a = { origen: 'VOZ · 01', codigo: 'NUMERO_NO_ASIGNADO', tenant_id: 't1' };
@@ -188,6 +219,29 @@ await prueba('salud: errores o purga RGPD inactiva → avisa sin datos personale
   assert.equal(out.length, 1);
   assert.match(out[0].json.detalle, /3 errores.*FIRMA_NO_VALIDA: 3.*purga diaria RGPD/);
   sinPII(out[0].json.detalle);
+});
+
+// ─── Coherencia con Retell ─────────────────────────────────────────────────
+await prueba('retell: toda {{variable}} del prompt y de las funciones existe (modo normal y sin sistema)', async () => {
+  const retell = join(aqui, '..', '..', 'retell');
+  const textos = readFileSync(join(retell, 'prompt_agente.md'), 'utf8') + readFileSync(join(retell, 'herramientas.json'), 'utf8') + '{{saludo_inicial}}';
+  const usadas = [...new Set([...textos.matchAll(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g)].map((m) => m[1]))].filter((v) => v !== 'N8N_URL');
+  for (const fx_ of ['contexto_ok.json', 'contexto_desconocido.json']) {
+    const [r] = await ejecutar('construir_variables.js', [{ json: fx(fx_) }]);
+    const v = r.json.respuesta.call_inbound.dynamic_variables;
+    const faltan = usadas.filter((k) => !(k in v));
+    assert.deepEqual(faltan, [], `${fx_}: faltan ${faltan.join(', ')}`);
+  }
+});
+await prueba('retell: las 7 funciones propias apuntan al webhook de herramientas con sus 4 cabeceras', async () => {
+  const h = JSON.parse(readFileSync(join(aqui, '..', '..', 'retell', 'herramientas.json'), 'utf8'));
+  const propias = h.filter((t) => t.type === 'custom');
+  assert.equal(propias.length, 7);
+  for (const t of propias) {
+    assert.equal(t.headers['x-herramienta'], t.name);
+    assert.deepEqual(Object.keys(t.headers).sort(), ['x-herramienta', 'x-id-llamada', 'x-numero-llamante', 'x-numero-negocio']);
+    assert.match(t.url, /\/webhook\/verantia-voz\/herramientas$/);
+  }
 });
 
 console.log(process.exitCode ? '══ HAY FALLOS' : `══ ${ok} PRUEBAS DEL CÓDIGO DE n8n OK`);

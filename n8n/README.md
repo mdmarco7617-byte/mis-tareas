@@ -31,20 +31,23 @@ select vault.create_secret('<TU API KEY DE RETELL>', 'retell_api_key');
 (Usa la API key de Retell marcada con el distintivo *webhook*.) No la pegues en n8n ni la compartas por chat.
 
 ### 2. Credenciales en n8n
-Crea estas 4 (los nombres exactos ayudan a que n8n las asocie solas al importar):
+Crea estas (los nombres exactos ayudan a que n8n las asocie solas al importar). Ahora mismo bastan **Supabase** y **SMTP (Resend)**; WhatsApp y Twilio, cuando actives las confirmaciones:
 
 | Nombre | Tipo en n8n | Datos |
 |---|---|---|
 | `Supabase · Verantia Voz` | Header Auth | Name: `apikey` · Value: la **secret key** del proyecto (Project Settings → API Keys, empieza por `sb_secret_`). ⚠️ Nunca la *publishable/anon* key |
 | `WhatsApp · Verantia` | Header Auth | Name: `Authorization` · Value: `Bearer <token permanente de la app de Meta>` |
 | `Twilio · Verantia` | Basic Auth | User: Account SID · Password: Auth Token |
-| `SMTP · Verantia` | SMTP | Los de tu proveedor de correo (recomendado proveedor en la UE, p. ej. Brevo) |
+| `SMTP · Verantia` | SMTP | **Resend**: host `smtp.resend.com`, puerto 465, SSL activado, usuario `resend`, contraseña = tu API key de Resend |
 
 ### 3. Importar
 1. En n8n: *Create workflow → ⋯ → Import from file*, uno a uno, **en este orden**: 05, 04, 06, 01, 02, 03 (así los subflujos existen cuando importas los que los llaman).
 2. En cada nodo con credencial en rojo, elige la credencial correspondiente.
 3. En los nodos **"Avisar a Verantia"** y **"Enviar notificaciones"**, elige el flujo `VOZ · 05 Alertas Verantia` / `VOZ · 04 Notificaciones` en la lista.
-4. En `VOZ · 04` y `VOZ · 05`, abre el nodo **Configuración** y rellena: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERANTIA` (tu WhatsApp), `TWILIO_ACCOUNT_SID`, `EMAIL_REMITENTE`, `EMAIL_VERANTIA`.
+4. En `VOZ · 04` y `VOZ · 05`, abre el nodo **Configuración**:
+   - **Interruptores** `WHATSAPP_ACTIVO`, `SMS_ACTIVO`, `EMAIL_ACTIVO` (`sí`/`no`). Vienen en `no`: un canal sin configurar no se usa ni genera alertas. Las confirmaciones se activan al final del proyecto.
+   - Con WhatsApp apagado, **tus alertas técnicas llegan por email** a `EMAIL_VERANTIA` (Resend). Con solo el email encendido, los avisos al negocio también van por email (a `tenants.email_avisos`).
+   - Rellena `EMAIL_REMITENTE` (un dominio verificado en Resend) y `EMAIL_VERANTIA`; el resto (`WHATSAPP_*`, `TWILIO_*`) cuando llegue su momento.
 5. En *Settings* de los flujos 01, 02, 03, 04 y 06 → **Error workflow: `VOZ · 05 Alertas Verantia`**.
 6. Comprueba en *Settings* de cada flujo que sigue: *Save successful production executions: **Do not save*** (viene así; es un requisito RGPD, ver abajo).
 7. **Publica** (activa) los 6 flujos.

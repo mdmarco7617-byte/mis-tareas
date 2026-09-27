@@ -11,7 +11,7 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | | Estado |
 |---|---|
 | El **negocio** es el *responsable del tratamiento*; **Verantia** es *encargada* (art. 28) | 🟡 Contrato de encargo firmado con cada negocio (plantilla pendiente, ver §9) |
-| Subencargados: Supabase (BD), Retell (voz + IA), proveedor del LLM vía Retell, Twilio (teléfono/SMS), Meta (WhatsApp), proveedor SMTP, hosting de n8n | 🟡 Aceptar/firmar el DPA de cada uno y listarlos en el contrato con el negocio |
+| Subencargados: Supabase (BD), Retell (voz + IA), proveedor del LLM vía Retell, Hostinger (VPS de n8n), Resend (email) y, cuando se activen, Twilio (SMS) y Meta (WhatsApp) | 🟡 Aceptar/firmar el DPA de cada uno y listarlos en el contrato con el negocio |
 
 ## 2. Transparencia (arts. 12–14) y AI Act (art. 50)
 | | Estado |
@@ -32,10 +32,12 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | | Estado |
 |---|---|
 | Solo se guarda: teléfono, nombre, email opcional, servicio, fecha, notas cortas | ✅ esquema |
-| **Prohibido pedir datos de salud** (alergias, medicación, embarazo…) | 🟡 regla en el prompt (siguiente entrega) + revisión de transcripciones en el piloto |
+| **Prohibido pedir datos de salud** (alergias, medicación, embarazo…) | ✅ regla en el prompt; 🟡 revisión de llamadas en el piloto |
 | Retell envía a n8n **solo los argumentos** de cada herramienta, no la transcripción | ✅ admitido y probado; 🟡 activar "Payload: args only" en las 7 funciones |
 | A la IA no le vuelven teléfonos, emails ni ids internos | ✅ probado |
-| **No se guarda audio**; transcripción solo si el negocio lo activa (por defecto no) | ✅ en nuestro sistema (probado); 🟡 desactivar grabación y almacenamiento de PII en Retell |
+| **No se guarda audio**; transcripción solo si el negocio lo activa (por defecto no) | ✅ en nuestro sistema (probado); ✅ el script del agente fija `data_storage_setting = everything_except_pii` (Retell por defecto lo guarda todo); 🟡 verificar en el panel de Retell tras crearlo |
+| Retell envía a n8n solo argumentos (`args_at_root`) | 🟡 comprobar en la primera llamada de prueba que no llega la transcripción (ver `retell/README.md`) |
+| El agente no pide datos de salud, ni email salvo que el cliente lo pida | ✅ en el prompt (`retell/prompt_agente.md`); 🟡 verificarlo en las llamadas de prueba |
 | n8n **no guarda** las ejecuciones correctas | ✅ ajuste en los 6 flujos (probado: 0 ejecuciones con datos) |
 | Alertas a Verantia **sin datos personales** (se borran teléfonos y emails) | ✅ probado |
 | Aviso al negocio: solo lo necesario para atender (nombre, servicio, hora, teléfono para devolver la llamada) | ✅ diseño |
@@ -69,9 +71,9 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | Aislamiento entre negocios (el negocio lo decide el número llamado) | ✅ probado |
 | Consultas parametrizadas, validación y limpieza de todas las entradas | ✅ probado |
 | Cifrado en tránsito (HTTPS) en todos los tramos | ✅ Supabase/Retell/Meta/Twilio; 🟡 n8n en producción con HTTPS |
-| **n8n de producción** en servidor de la UE, disco cifrado, actualizado, con copias | 🟡 hoy es local (solo apto para pruebas con datos demo) |
+| **n8n de producción**: VPS de Hostinger | 🟡 confirmar que el VPS está en un centro de datos de la **UE** (Hostinger tiene en Lituania, Francia, Países Bajos…); aceptar su DPA; HTTPS; sistema y n8n actualizados; copias; variables de poda de ejecuciones |
 | **Copias de seguridad** de la BD | 🟡 el plan gratuito de Supabase no ofrece copias restaurables: plan Pro antes del primer cliente |
-| Túnel para pruebas (Cloudflare, ngrok…) | 🟡 solo con datos demo; nunca con clientes reales |
+
 
 ## 8. Transferencias internacionales (cap. V)
 | Proveedor | Situación | Estado |
@@ -81,7 +83,8 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | LLM usado por Retell (OpenAI / Anthropic…) | EE. UU. | 🟡 idem; elegir el modelo con garantías y sin entrenamiento con los datos |
 | Twilio | EE. UU. (DPF / BCR) | 🟡 aceptar su DPA |
 | Meta (WhatsApp) | Meta Platforms Ireland | 🟡 aceptar las condiciones de WhatsApp Business |
-| Proveedor SMTP | Recomendado en la UE (p. ej. Brevo) | 🟡 |
+| Resend (email) | Empresa de EE. UU. | 🟡 aceptar su DPA, verificar DPF/cláusulas tipo y, si lo ofrece, elegir región de envío en la UE |
+| Hostinger (VPS n8n) | Grupo con sede en la UE (Lituania) | 🟡 VPS en centro de datos de la UE + DPA |
 
 ## 9. Documentación pendiente (la preparo en su momento)
 - ⚖️ Contrato de encargo del tratamiento (Verantia ↔ negocio) con anexo de subencargados y plazos.
@@ -94,3 +97,4 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | Fecha | Entrega | Resultado |
 |---|---|---|
 | 27/09/2026 | BD (migraciones 001–005) + flujos n8n 01–06 | Todo lo técnico ✅ y probado. Abiertos: configuración de Retell, contratos, política por negocio, n8n de producción, plan Pro |
+| 27/09/2026 | Agente Retell (prompt + funciones + script) e interruptores de canales | Prompt con reglas de privacidad ✅; guardado de datos de Retell restringido ✅. Confirmaciones apagadas hasta configurar WhatsApp/SMS/email (decisión del proyecto). Nuevos subencargados: Hostinger y Resend 🟡 |

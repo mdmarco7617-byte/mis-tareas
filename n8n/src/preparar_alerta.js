@@ -35,8 +35,9 @@ for (const item of $input.all()) {
   if (estado.ultimas[clave] && ahora - estado.ultimas[clave] < ventana) continue;
   estado.ultimas[clave] = ahora;
 
+  const porWhatsapp = ['sí', 'si', 'true', '1', 'yes'].includes(String(cfg.WHATSAPP_ACTIVO ?? '').trim().toLowerCase());
   salida.push({ json: {
-    canal: 'whatsapp', destino: cfg.WHATSAPP_VERANTIA, plantilla: cfg.PLANTILLA_ALERTA,
+    canal: porWhatsapp ? 'whatsapp' : 'email', destino: cfg.WHATSAPP_VERANTIA, plantilla: cfg.PLANTILLA_ALERTA,
     idioma: cfg.WHATSAPP_IDIOMA, parametros: [origen, codigo, detalle],
     email_respaldo: cfg.EMAIL_VERANTIA,
     texto: `Origen: ${origen}\nCódigo: ${codigo}\nDetalle: ${detalle}`,
