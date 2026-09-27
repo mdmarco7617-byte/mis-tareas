@@ -51,10 +51,12 @@ Me preguntabas si hay opciones más baratas con la misma calidad, o si se puede 
 ### Configuración "lean" de Retell (recomendada)
 | Componente | Opción premium (lo que se suele configurar por defecto) | Opción lean (recomendada) | Ahorro |
 |---|---|---|---|
-| LLM | GPT-4o / modelo "frontier" (~0,08–0,16 €/min) | Modelo ligero (GPT-5 nano/mini o Claude Haiku 4.5, ~0,01–0,025 €/min). Para este caso de uso (FAQs + recogida de datos estructurados con herramientas) es más que suficiente: la conversación está muy guiada por el prompt y las herramientas, no requiere razonamiento complejo | ~0,06–0,10 €/min |
-| Voz (TTS) | Voz premium (ElevenLabs alta gama) (~0,08 €/min) | Voz estándar/Cartesia (sigue sonando natural en español) (~0,04–0,05 €/min) | ~0,03–0,04 €/min |
-| Telefonía | Telefonía incluida de Retell (~0,015 €/min + margen) | **Tu propio troncal Twilio/Telnyx** conectado a Retell ("BYO telephony"): pagas telefonía a precio mayorista y evitas el margen del proveedor | ~0,005–0,01 €/min |
+| Motor de voz de Retell (STT + TTS + turnos) | ~0,07 $/min (≈0,06 €) | **El mismo: esta parte es fija** y es justo la que no queremos tocar. Solo algunas voces "premium" cuestan algo más: elegir una voz incluida en la tarifa base | 0 (o pequeño si se evita una voz con recargo) |
+| LLM | GPT-4o / modelo "frontier" (~0,05–0,15 €/min) | Modelo de gama "mini" (tipo GPT-4.1 mini / GPT-5 mini o Claude Haiku 4.5, ~0,01–0,025 €/min). **No bajar a la gama "nano"**: es más barata pero falla más llamando a herramientas, y una herramienta mal llamada es una cita mal dada | **~0,04–0,12 €/min — la palanca principal** |
+| Telefonía | Telefonía incluida de Retell (~0,015 $/min) | Tu propio número Twilio/Telnyx conectado a Retell por SIP ("BYO telephony") | ~0,005 €/min (poco; se hace sobre todo por control del número) |
 | **Total estimado** | 0,13–0,16 €/min | **~0,08–0,10 €/min** | **~35–40 % más barato** |
+
+> **Corrección respecto a la v2**: en la versión anterior de esta tabla atribuí parte del ahorro a "bajar la voz a estándar (~0,04–0,05 €/min)". Eso era incorrecto: en Retell la voz va dentro de la tarifa fija del motor (~0,07 $/min), no se paga aparte. El **total lean (~0,08–0,10 €/min) sigue siendo correcto**, pero el ahorro sale casi entero del LLM, no de la voz. También matizo el modelo: gama "mini", no "nano".
 
 Con esta configuración obtienes prácticamente la misma calidad conversacional (el "cerebro" de turnos y latencia de Retell no cambia) por un coste cercano al de Vapi barato, pero sin la carga de integrar tú mismo STT+LLM+TTS+telefonía por separado. **Este es el ajuste que recomiendo hacer, no cambiar de proveedor.**
 
