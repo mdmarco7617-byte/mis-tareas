@@ -37,6 +37,7 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | A la IA no le vuelven teléfonos, emails ni ids internos | ✅ probado |
 | **No se guarda audio**; transcripción solo si el negocio lo activa (por defecto no) | ✅ en nuestro sistema (probado); ✅ el script del agente fija `data_storage_setting = everything_except_pii` (Retell por defecto lo guarda todo); 🟡 verificar en el panel de Retell tras crearlo |
 | Retell envía a n8n solo argumentos (`args_at_root`) | 🟡 comprobar en la primera llamada de prueba que no llega la transcripción (ver `retell/README.md`) |
+| Variables de prueba (peluquería demo) cargadas por defecto en Retell | 🟡 **quitarlas antes de la primera llamada real** (`crear_agente.py --quitar-variables-prueba`) para que un fallo nunca muestre datos ajenos |
 | El agente no pide datos de salud, ni email salvo que el cliente lo pida | ✅ en el prompt (`retell/prompt_agente.md`); 🟡 verificarlo en las llamadas de prueba |
 | n8n **no guarda** las ejecuciones correctas | ✅ ajuste en los 6 flujos (probado: 0 ejecuciones con datos) |
 | Alertas a Verantia **sin datos personales** (se borran teléfonos y emails) | ✅ probado |

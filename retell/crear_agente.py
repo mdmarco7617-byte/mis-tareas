@@ -9,6 +9,8 @@ Uso:
   python3 retell/crear_agente.py --mostrar        # solo enseña lo que enviaría, no crea nada
   python3 retell/crear_agente.py                  # crea LLM + agente y muestra sus ids
   python3 retell/crear_agente.py --actualizar-llm <llm_id>   # tras cambiar el prompt o las funciones
+  python3 retell/crear_agente.py --cargar-variables-prueba <llm_id>   # SOLO pruebas: datos de la peluquería demo
+  python3 retell/crear_agente.py --quitar-variables-prueba <llm_id>   # OBLIGATORIO antes de llamadas reales
 
 Opcionales: MODELO (por defecto gpt-4.1-mini), GUARDADO_DATOS (por defecto everything_except_pii).
 """
@@ -73,14 +75,28 @@ def llamar(metodo, ruta, cuerpo):
 
 
 def main():
-    n8n_url = entorno('N8N_URL')
+    args = sys.argv[1:]
+    if any(a in args for a in ('--cargar-variables-prueba', '--quitar-variables-prueba')):
+        n8n_url = 'https://sin-uso'
+    else:
+        n8n_url = entorno('N8N_URL')
     if not n8n_url.startswith('https://'):
         sys.exit('N8N_URL debe empezar por https:// (Retell no llama a direcciones sin cifrar)')
-    args = sys.argv[1:]
 
     if '--mostrar' in args:
         print(json.dumps({'llm': cuerpo_llm(n8n_url), 'agente': cuerpo_agente('<llm_id>', n8n_url)},
                          ensure_ascii=False, indent=2))
+        return
+
+    if '--cargar-variables-prueba' in args or '--quitar-variables-prueba' in args:
+        cargar = '--cargar-variables-prueba' in args
+        llm_id = args[args.index('--cargar-variables-prueba' if cargar else '--quitar-variables-prueba') + 1]
+        # Retell usa estas variables solo si la llamada no trae las suyas (p. ej. en las pruebas del panel).
+        # En llamadas reales las pone el flujo 01; aun así hay que QUITARLAS antes de atender clientes,
+        # para que un fallo del flujo 01 nunca haga que el agente hable con datos de la peluquería demo.
+        variables = json.loads((AQUI / 'variables_prueba_web.json').read_text()) if cargar else {}
+        llamar('PATCH', f'/update-retell-llm/{llm_id}', {'default_dynamic_variables': variables})
+        print(f'Variables de prueba {"cargadas" if cargar else "quitadas"} en el LLM {llm_id}.')
         return
 
     if '--actualizar-llm' in args:
