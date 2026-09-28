@@ -5,7 +5,7 @@
 insert into public.tenants (id, slug, nombre, tipo, nombre_asistente, descripcion, direccion, telefono_publico,
                             telefono_transferencia, whatsapp_avisos, politica_cancelacion, cancelacion_min_horas,
                             antelacion_min_minutos, paso_minutos)
-values ('11111111-1111-1111-1111-111111111111', 'peluqueria-demo', 'Peluquería Demo', 'peluqueria', 'Lucía',
+values ('11111111-1111-1111-1111-111111111111', 'peluqueria-demo', 'Peluquería Demo', 'peluqueria', 'Álex',
         'Peluquería de barrio en el centro de Valladolid. Trabajamos con productos sin amoniaco.',
         'Calle Santiago 1, Valladolid', '983 000 001', '+34600000001', '+34600000001',
         'Puedes cancelar o cambiar tu cita sin coste hasta 12 horas antes.', 12, 60, 15);

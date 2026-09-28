@@ -67,7 +67,7 @@ await prueba('variables: contexto real → todas las variables son texto', async
 await prueba('variables: saludo con aviso de IA y de privacidad en la primera frase', async () => {
   const [r] = await ejecutar('construir_variables.js', [{ json: fx('contexto_ok.json') }]);
   const s = r.json.respuesta.call_inbound.dynamic_variables.saludo_inicial;
-  assert.match(s, /^Hola, soy Lucía, asistente virtual con inteligencia artificial de Peluquería Demo\./);
+  assert.match(s, /^Hola, soy Álex, asistente virtual con inteligencia artificial de Peluquería Demo\./);
   assert.match(s, /privacidad/);
 });
 await prueba('variables: calendario de 30 días, horario y catálogo con códigos', async () => {

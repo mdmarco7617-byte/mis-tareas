@@ -182,7 +182,7 @@ n8n llama a `fn_tenant_context(to_number, from_number)`, que devuelve el negocio
 ```json
 { "call_inbound": {
     "dynamic_variables": {
-      "nombre_negocio": "Peluquería Demo", "nombre_asistente": "Lucía",
+      "nombre_negocio": "Peluquería Demo", "nombre_asistente": "Álex",
       "fecha_hoy": "lunes 28 de septiembre de 2026, 10:32",
       "calendario": "...", "horario": "...", "catalogo": "...", "faq": "...",
       "politicas": "...", "cliente_conocido": "Ana (cita el lunes 5 a las 10:00, ref. 482715)"
