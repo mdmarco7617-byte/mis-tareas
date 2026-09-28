@@ -42,7 +42,7 @@ delete from public.tenants where slug in ('peluqueria-demo', 'restaurante-demo')
    4. (opcional, para pruebas) `seed/demo_negocios.sql`
 
    Con la CLI de Supabase: copiar la carpeta `migrations` a `supabase/migrations` del proyecto y hacer `supabase db push`.
-3. En n8n, crear la credencial con la **service_role key** (Project Settings → API). **Nunca** la anon key: con la anon key todas las funciones y tablas están bloqueadas a propósito.
+3. En n8n, crear la credencial con la **secret key** (`sb_secret_…`, Project Settings → API Keys). **Nunca** la publishable/anon key: con ella todas las funciones y tablas están bloqueadas a propósito.
 
 ## Cómo lo llama n8n
 
