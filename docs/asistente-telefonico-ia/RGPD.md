@@ -50,7 +50,7 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | Citas pasadas | 24 meses → anonimizadas | ✅ probado |
 | Clientes sin citas ni actividad | 24 meses → borrados | ✅ probado |
 | Registro técnico de errores | 90 días | ✅ |
-| Ejecuciones fallidas de n8n | 7 días | 🟡 variables `EXECUTIONS_DATA_*` (ver `n8n/README.md`) |
+| Ejecuciones fallidas de n8n | 7 días | ✅ `EXECUTIONS_DATA_PRUNE` + `MAX_AGE=168` aplicadas en el VPS (28/09) |
 | Datos en Retell, Twilio y Meta | según cada proveedor | 🟡 configurar el mínimo posible en cada uno |
 | Plazos definitivos por negocio | | ⚖️ acordarlos en el contrato de encargo |
 
@@ -71,7 +71,7 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | Aislamiento entre negocios (el negocio lo decide el número llamado) | ✅ probado |
 | Consultas parametrizadas, validación y limpieza de todas las entradas | ✅ probado |
 | Cifrado en tránsito (HTTPS) en todos los tramos | ✅ Supabase/Retell/Meta/Twilio; 🟡 n8n en producción con HTTPS |
-| **n8n de producción**: VPS de Hostinger | 🟡 confirmar que el VPS está en un centro de datos de la **UE** (Hostinger tiene en Lituania, Francia, Países Bajos…); aceptar su DPA; HTTPS; sistema y n8n actualizados; copias; variables de poda de ejecuciones |
+| **n8n de producción**: VPS de Hostinger en **París (UE)** | ✅ ubicación UE · ✅ solo accesible por HTTPS (puerto 5678 cerrado al exterior, 28/09) · ✅ poda de ejecuciones a 7 días · 🟡 aceptar DPA de Hostinger, reiniciar para aplicar actualizaciones, copias del volumen `n8n_data` |
 | **Copias de seguridad** de la BD | 🟡 el plan gratuito de Supabase no ofrece copias restaurables: plan Pro antes del primer cliente |
 
 
@@ -84,7 +84,7 @@ Lista de control viva: se revisa en cada entrega. Estados:
 | Twilio | EE. UU. (DPF / BCR) | 🟡 aceptar su DPA |
 | Meta (WhatsApp) | Meta Platforms Ireland | 🟡 aceptar las condiciones de WhatsApp Business |
 | Resend (email) | Empresa de EE. UU. | 🟡 aceptar su DPA, verificar DPF/cláusulas tipo y, si lo ofrece, elegir región de envío en la UE |
-| Hostinger (VPS n8n) | Grupo con sede en la UE (Lituania) | 🟡 VPS en centro de datos de la UE + DPA |
+| Hostinger (VPS n8n) | Grupo con sede en la UE (Lituania); VPS en París | ✅ UE · 🟡 aceptar DPA |
 
 ## 9. Documentación pendiente (la preparo en su momento)
 - ⚖️ Contrato de encargo del tratamiento (Verantia ↔ negocio) con anexo de subencargados y plazos.
