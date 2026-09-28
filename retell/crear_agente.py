@@ -32,13 +32,13 @@ def entorno(nombre, defecto=None, obligatorio=True):
 
 
 def cuerpo_llm(n8n_url):
-    herramientas = json.loads((AQUI / 'herramientas.json').read_text().replace('{{N8N_URL}}', n8n_url.rstrip('/')))
+    herramientas = json.loads((AQUI / 'herramientas.json').read_text(encoding='utf-8').replace('{{N8N_URL}}', n8n_url.rstrip('/')))
     return {
         'model': entorno('MODELO', 'gpt-4.1-mini'),
         'model_temperature': 0.2,                      # respuestas estables: es atención al cliente, no creatividad
         'start_speaker': 'agent',
         'begin_message': '{{saludo_inicial}}',        # aviso de IA + primera capa de privacidad
-        'general_prompt': (AQUI / 'prompt_agente.md').read_text(),
+        'general_prompt': (AQUI / 'prompt_agente.md').read_text(encoding='utf-8'),
         'general_tools': herramientas,
     }
 
@@ -94,7 +94,7 @@ def main():
         # Retell usa estas variables solo si la llamada no trae las suyas (p. ej. en las pruebas del panel).
         # En llamadas reales las pone el flujo 01; aun así hay que QUITARLAS antes de atender clientes,
         # para que un fallo del flujo 01 nunca haga que el agente hable con datos de la peluquería demo.
-        variables = json.loads((AQUI / 'variables_prueba_web.json').read_text()) if cargar else {}
+        variables = json.loads((AQUI / 'variables_prueba_web.json').read_text(encoding='utf-8')) if cargar else {}
         llamar('PATCH', f'/update-retell-llm/{llm_id}', {'default_dynamic_variables': variables})
         print(f'Variables de prueba {"cargadas" if cargar else "quitadas"} en el LLM {llm_id}.')
         return
