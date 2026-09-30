@@ -11,3 +11,10 @@ grant usage on schema public to anon, authenticated, service_role;
 create schema if not exists vault;
 create table if not exists vault.secretos_locales (name text primary key, decrypted_secret text);
 create or replace view vault.decrypted_secrets as select name, decrypted_secret from vault.secretos_locales;
+
+-- Réplica local de pg_cron: el esquema existe pero service_role NO tiene acceso (como en Supabase)
+create schema if not exists cron;
+create table if not exists cron.job (jobname text, active boolean);
+insert into cron.job select 'verantia-purga-rgpd', true where not exists (select 1 from cron.job);
+revoke all on schema cron from public, anon, authenticated, service_role;
+revoke all on cron.job from public, anon, authenticated, service_role;

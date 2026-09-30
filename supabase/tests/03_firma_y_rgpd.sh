@@ -87,6 +87,8 @@ R=$($P -c "select concat_ws('|', nombre_cliente, customer_id is null) from appoi
 ok "… la cita queda anonimizada" "$R" "[caducado]|t"
 
 echo "── vigilancia y fallos"
+R=$($P -c "set role service_role; select concat_ws('|', fn_voz_health()->>'ok', fn_voz_health()->>'purga_programada')" | tail -1)
+ok "fn_voz_health como service_role (sin acceso al esquema cron) → ok y purga detectada" "$R" "true|true"
 R=$($P -c "select (fn_voz_health()->>'ok')");                                                     ok "fn_voz_health responde" "$R" "true"
 $P -c "delete from vault.secretos_locales"
 R=$(sql "select fn_voz_inbound(:'raw', :'sig')->>'codigo'" "$IN" "$(firmar "$IN")");            ok "sin secreto en Vault → ERROR_TECNICO controlado (y queda registrado)" "$R" "ERROR_TECNICO"

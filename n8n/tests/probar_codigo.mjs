@@ -74,7 +74,7 @@ await prueba('variables: calendario de 30 días, horario y catálogo con código
   const [r] = await ejecutar('construir_variables.js', [{ json: fx('contexto_ok.json') }]);
   const v = r.json.respuesta.call_inbound.dynamic_variables;
   assert.equal(v.calendario.split('\n').length, 30);
-  assert.match(v.calendario.split('\n')[0], /^hoy, \w+ \d+ de \w+ de \d{4} = \d{4}-\d{2}-\d{2}$/);
+  assert.match(v.calendario.split('\n')[0], /^hoy, \p{L}+ \d+ de \p{L}+ de \d{4} = \d{4}-\d{2}-\d{2}$/u);
   assert.match(v.horario, /lunes: 10:00 a 14:00 y 16:00 a 20:00/);
   assert.match(v.horario, /domingo: cerrado/);
   assert.match(v.catalogo, /- mechas: Mechas · desde 65 € · 120 min · lo hacen: Laura/);
@@ -106,7 +106,7 @@ await prueba('mensajes: cita confirmada → WhatsApp cliente (+SMS respaldo) + e
   assert.equal(cli.destino, '+34600888001');
   assert.equal(cli.parametros.length, 7);
   assert.equal(cli.parametros[0], 'Ana Fixture');
-  assert.match(cli.parametros[3], /^\w+ \d+ de \w+ a las 10:00$/);
+  assert.match(cli.parametros[3], /^\p{L}+ \d+ de \p{L}+ a las 10:00$/u);
   assert.match(cli.sms_respaldo, /Ref\. \d{6}/);
   assert.equal(mail.destino, 'ana@example.com');
   assert.match(mail.html, /Responsable del tratamiento: Peluquería Demo/);
