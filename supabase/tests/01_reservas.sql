@@ -21,10 +21,10 @@ returns jsonb language sql as $$ select public.fn_tool_dispatch('+34983000002', 
 -- Fechas relativas (siempre en el futuro): el lunes de dentro de ≥ 8 días, y días de esa semana
 select (current_date + 8 + ((8 - extract(isodow from current_date + 8)::int) % 7))::text as lunes \gset
 select (:'lunes'::date + 1)::text as martes, (:'lunes'::date + 5)::text as sabado, (:'lunes'::date + 6)::text as domingo,
-       (:'lunes'::date + 7)::text as lunes2, (current_date - 1)::text as ayer \gset
+       (:'lunes'::date + 7)::text as lunes2, (current_date - 1)::text as ayer, (:'lunes'::date + 8)::text as martes2 \gset
 
 -- Que un festivo real no caiga en la semana de prueba (los tests de festivos lo insertan a propósito)
-delete from public.holidays where fecha between :'lunes'::date and :'lunes2'::date;
+delete from public.holidays where fecha between :'lunes'::date and :'martes2'::date;
 
 \echo '── check_availability'
 select pg_temp.ok('disponible lunes 10:00',
@@ -88,6 +88,18 @@ select pg_temp.ok('reintento idéntico de Retell (misma llamada) → misma cita,
    from pg_temp.pelu('create_appointment', jsonb_build_object('servicio','corte_mujer','fecha',:'lunes','hora','10:00','nombre','Ana García'),
                      '+34600000101', 'call-1') r));
 select pg_temp.ok('solo 1 cita tras el reintento', (select count(*) = 1 from public.appointments where call_id = 'call-1'));
+select pg_temp.ok('DOS PERSONAS distintas, mismo móvil, misma llamada y mismo hueco → dos citas (no se confunden)',
+  (select a->>'codigo' = 'CONFIRMADO' and b->>'codigo' = 'CONFIRMADO' and a->>'referencia' <> b->>'referencia'
+          and coalesce(b->>'repetida','no') = 'no'
+   from (select pg_temp.pelu('create_appointment', jsonb_build_object('servicio','corte_hombre','fecha',:'martes2','hora','12:00','nombre','Marco Hermanos'), '+34600000150', 'hermanos-1') a,
+                pg_temp.pelu('create_appointment', jsonb_build_object('servicio','corte_hombre','fecha',:'martes2','hora','12:00','nombre','Lucas Hermanos'), '+34600000150', 'hermanos-1') b) x));
+select pg_temp.ok('… y quedan guardadas las dos, con su nombre y profesionales distintos',
+  (select count(*) = 2 and count(distinct resource_id) = 2 and count(distinct nombre_cliente) = 2
+   from public.appointments where call_id = 'hermanos-1'));
+select pg_temp.ok('la MISMA persona repitiendo la petición sí sigue siendo "repetida" (no duplica)',
+  (select r->>'repetida' = 'true' and r->>'referencia' = (select referencia from public.appointments where call_id = 'hermanos-1' and nombre_cliente = 'Marco Hermanos')
+   from pg_temp.pelu('create_appointment', jsonb_build_object('servicio','corte_hombre','fecha',:'martes2','hora','12:00','nombre','  marco   HERMANOS '), '+34600000150', 'hermanos-1') r)
+  and (select count(*) = 2 from public.appointments where call_id = 'hermanos-1'));
 select pg_temp.ok('crear cita 2 misma hora → la otra profesional',
   (pg_temp.pelu('create_appointment', jsonb_build_object('servicio','corte_mujer','fecha',:'lunes','hora','10:00','nombre','Bea'),
                 '+34600000102', 'call-2'))->>'codigo' = 'CONFIRMADO');
