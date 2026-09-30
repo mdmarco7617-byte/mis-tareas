@@ -87,10 +87,11 @@ const antelacion = Number(t.antelacion_min_minutos || 0);
 const asistente = txt(t.nombre_asistente) || 'el asistente virtual';
 const negocio = txt(t.nombre);
 
-// Primera capa informativa (RGPD art. 13) + aviso de IA (AI Act art. 50), en la primera frase
+// Primera capa informativa (RGPD art. 13) + aviso de IA (AI Act art. 50), en la primera frase.
+// Solo se manda a una web si el negocio tiene política de privacidad cargada (tenants.url_privacidad).
+const masInfo = txt(r.url_privacidad) ? 'más información en nuestra web' : 'puedes pedirnos más información';
 const saludo = `Hola, soy ${asistente}, asistente virtual con inteligencia artificial de ${negocio}. `
-  + 'Usaré tus datos solo para atender tu consulta o gestionar tu cita; '
-  + 'tienes toda la información sobre privacidad en nuestra web. ¿En qué puedo ayudarte?';
+  + `Usamos tus datos solo para gestionar tu cita; ${masInfo}. ¿En qué te ayudo?`;
 
 const vars = {
   ...base,

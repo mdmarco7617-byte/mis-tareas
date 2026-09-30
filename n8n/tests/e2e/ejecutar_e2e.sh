@@ -18,10 +18,16 @@ firmar() { local ts=$(($(date +%s%N) / 1000000)); echo "v=$ts,d=$(printf '%s%s' 
 post() { curl -s -o "$TRABAJO/resp.json" -w '%{http_code}' -X POST "$BASE/$1" -H 'content-type: application/json' -H "x-retell-signature: $2" "${@:4}" --data-binary "$3"; }
 jq_() { python3 -c "import json,re,sys; d=json.load(open('$1')); print(eval(sys.argv[1]))" "$2" 2>/dev/null; }
 registro() { curl -s http://127.0.0.1:54322/registro > "$TRABAJO/registro.json"; jq_ "$TRABAJO/registro.json" "$1"; }
+# Espera activa (hasta 30 s) a que lo enviado por n8n coincida con lo esperado: los avisos se mandan en segundo plano
+espera() { local v t=0; while :; do v=$(registro "$1"); [[ "$v" == "$2" || $t -ge 30 ]] && break; sleep 1; t=$((t+1)); done; ok "$3" "$v" "$2"; }
 
 # ─── Preparación ───────────────────────────────────────────────────────────
 rm -rf "$TRABAJO" && mkdir -p "$TRABAJO"
-$P -c "delete from vault.secretos_locales; insert into vault.secretos_locales values ('retell_api_key', '$KEY'); delete from error_log;"
+# La prueba deja la BD como la encontró: sus citas de otras ejecuciones harían que la idempotencia
+# devolviera "repetida" (sin avisar), que es lo correcto pero rompería estas comprobaciones.
+$P -c "delete from vault.secretos_locales; insert into vault.secretos_locales values ('retell_api_key', '$KEY'); delete from error_log;
+       delete from appointments where call_id like 'e2e-%'; delete from calls where call_id like 'e2e-%';
+       delete from customers where telefono in ('+34600555001','+34600555002','+34600555003','+34600999999');"
 LUNES=$($P -c "select current_date + 36 + ((8 - extract(isodow from current_date + 36)::int) % 7)")
 $P -c "delete from holidays where fecha = '$LUNES'"
 VOZ_SALIDA="$TRABAJO/generados" VOZ_PRUEBAS='{"WHATSAPP_ACTIVO":"sí","SMS_ACTIVO":"sí","EMAIL_ACTIVO":"sí","SUPABASE_URL":"http://127.0.0.1:54321","WHATSAPP_API_URL":"http://127.0.0.1:54322","TWILIO_API_URL":"http://127.0.0.1:54322","TWILIO_ACCOUNT_SID":"ACprueba","WHATSAPP_PHONE_NUMBER_ID":"123456","WHATSAPP_VERANTIA":"+34600000000"}' \
@@ -41,6 +47,10 @@ trap 'kill $N8NPID $SIM 2>/dev/null' EXIT
 for i in $(seq 1 90); do curl -sf http://127.0.0.1:5678/healthz >/dev/null && break; sleep 1; done
 for i in $(seq 1 20); do curl -s -o /dev/null -X POST http://127.0.0.1:54321/rest/v1/rpc/fn_voz_health -H "apikey: clave-prueba" -d "{}" && break; sleep 1; done
 sleep 5
+for i in $(seq 1 60); do   # esperar a que n8n registre los webhooks (un 404 significa "todavía no")
+  c=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/inicio" -H 'content-type: application/json' --data '{}')
+  [[ "$c" != "404" ]] && break; sleep 1
+done
 echo "── n8n $("$N8N" --version) arrancado con los 6 flujos"
 
 # ─── 01 · Inicio de llamada ────────────────────────────────────────────────
@@ -66,10 +76,10 @@ A2="{\"servicio\":\"mechas\",\"fecha\":\"$LUNES\",\"hora\":\"16:00\",\"nombre\":
 CAB2=(-H 'x-herramienta: create_appointment' -H 'x-numero-negocio: +34983000001' -H 'x-numero-llamante: +34600999999' -H 'x-id-llamada: e2e-5')
 post herramientas "$(firmar "$A2")" "$A2" "${CAB2[@]}" > /dev/null
 sleep 6
-ok "04 WhatsApp de confirmación al cliente" "$(registro "sum(1 for m in d if m['canal']=='whatsapp' and m['plantilla']=='verantia_cita_confirmada' and m['to']=='34600555001' and m['parametros'][0]=='Elena E2E')")" "1"
-ok "04 email al cliente" "$(registro "sum(1 for m in d if m['canal']=='email' and 'elena@example.com' in m['to'])")" "1"
-ok "04 aviso al negocio (2 citas)" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['to']=='34600000001' and m['parametros'][1]=='Nueva cita')")" "2"
-ok "04 número sin WhatsApp → SMS de respaldo" "$(registro "sum(1 for m in d if m['canal']=='sms' and m['to']=='+34600999999' and 'Ref.' in m['texto'] and m['from']=='Verantia')")" "1"
+espera "sum(1 for m in d if m['canal']=='whatsapp' and m['plantilla']=='verantia_cita_confirmada' and m['to']=='34600555001' and m['parametros'][0]=='Elena E2E')" "1" "04 WhatsApp de confirmación al cliente"
+espera "sum(1 for m in d if m['canal']=='email' and 'elena@example.com' in m['to'])" "1" "04 email al cliente"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['to']=='34600000001' and m['parametros'][1]=='Nueva cita')" "2" "04 aviso al negocio (2 citas)"
+espera "sum(1 for m in d if m['canal']=='sms' and m['to']=='+34600999999' and 'Ref.' in m['texto'] and m['from']=='Verantia')" "1" "04 número sin WhatsApp → SMS de respaldo"
 
 A3="{\"referencia\":\"$REF\",\"fecha\":\"$LUNES\",\"hora\":\"12:00\"}"
 CAB3=(-H 'x-herramienta: reschedule_appointment' -H 'x-numero-negocio: +34983000001' -H 'x-numero-llamante: +34600555001' -H 'x-id-llamada: e2e-6')
@@ -81,11 +91,11 @@ ok "02 firma falsa → 401" "$(post herramientas "v=1,d=00" "$A" "${CAB[@]}")" "
 CAB5=(-H 'x-herramienta: check_availability' -H 'x-numero-negocio: +34983000001' -H 'x-numero-llamante: +34600555001' -H 'x-id-llamada: forzar-caida')
 ok "02 Supabase caído → el agente recibe ERROR_TECNICO (nunca silencio)" "$(post herramientas "$(firmar "$A")" "$A" "${CAB5[@]}")|$(jq_ $TRABAJO/resp.json "d['codigo']")" "200|ERROR_TECNICO"
 sleep 6
-ok "04 cambio de cita → WhatsApp de modificación al cliente" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_cita_modificada' and m['to']=='34600555001')")" "1"
-ok "04 derivación → aviso al negocio con el teléfono" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['parametros'][1]=='Llamada para el equipo' and '+34600555002' in m['parametros'][3])")" "1"
-ok "05 alerta a Verantia por el número no asignado" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and 'NUMERO_NO_ASIGNADO' in m['parametros'][1])")" "1"
-ok "05 alerta a Verantia por Supabase caído" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and m['parametros'][1]=='SUPABASE_NO_RESPONDE')")" "1"
-ok "05 las alertas no llevan teléfonos ni emails" "$(registro "any(re.search(r'\\d{9,}|@', ' '.join(m['parametros'])) for m in d if m.get('plantilla')=='verantia_alerta_tecnica')")" "False"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_cita_modificada' and m['to']=='34600555001')" "1" "04 cambio de cita → WhatsApp de modificación al cliente"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['parametros'][1]=='Llamada para el equipo' and '+34600555002' in m['parametros'][3])" "1" "04 derivación → aviso al negocio con el teléfono"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and 'NUMERO_NO_ASIGNADO' in m['parametros'][1])" "1" "05 alerta a Verantia por el número no asignado"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and m['parametros'][1]=='SUPABASE_NO_RESPONDE')" "1" "05 alerta a Verantia por Supabase caído"
+espera "any(re.search(r'\\d{9,}|@', ' '.join(m['parametros'])) for m in d if m.get('plantilla')=='verantia_alerta_tecnica')" "False" "05 las alertas no llevan teléfonos ni emails"
 
 # ─── 03 · Fin de llamada ───────────────────────────────────────────────────
 curl -s -X DELETE http://127.0.0.1:54322/registro > /dev/null
@@ -96,7 +106,7 @@ E2='{"event":"call_started","call":{"call_id":"e2e-9"}}'
 ok "03 call_started → 200 y se ignora" "$(post eventos "$(firmar "$E2")" "$E2")" "200"
 sleep 6
 ok "03 llamada guardada: 120 s, sin transcripción" "$($P -c "select duracion_seg || '|' || (transcripcion is null) from calls where call_id = 'e2e-8'")" "120|true"
-ok "04 llamada no resuelta → aviso al negocio" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['parametros'][1]=='Llamada no resuelta' and '+34600555003' in m['parametros'][3])")" "1"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_aviso_negocio' and m['parametros'][1]=='Llamada no resuelta' and '+34600555003' in m['parametros'][3])" "1" "04 llamada no resuelta → aviso al negocio"
 ok "03 call_started no genera nada" "$($P -c "select count(*) from calls where call_id = 'e2e-9'")" "0"
 
 # ─── 06 · Vigilancia diaria ────────────────────────────────────────────────
@@ -104,7 +114,7 @@ curl -s -X DELETE http://127.0.0.1:54322/registro > /dev/null
 kill $N8NPID 2>/dev/null; wait $N8NPID 2>/dev/null; sleep 2   # el CLI no puede ejecutar con otro n8n en marcha
 timeout 120 "$N8N" execute --id=vozVigila0000006 > "$TRABAJO/vigilancia.log" 2>&1
 sleep 4
-ok "06 revisión diaria detecta los errores del día y avisa" "$(registro "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and m['parametros'][1]=='REVISION_DIARIA')")" "1"
+espera "sum(1 for m in d if m.get('plantilla')=='verantia_alerta_tecnica' and m['parametros'][1]=='REVISION_DIARIA')" "1" "06 revisión diaria detecta los errores del día y avisa"
 
 # ─── RGPD en n8n ───────────────────────────────────────────────────────────
 N_EJEC=$(python3 -c "import sqlite3; print(sqlite3.connect('$N8N_USER_FOLDER/.n8n/database.sqlite').execute(\"select count(*) from execution_entity where status = 'success'\").fetchone()[0])" 2>/dev/null || echo "?")

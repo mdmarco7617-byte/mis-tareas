@@ -68,7 +68,13 @@ await prueba('variables: saludo con aviso de IA y de privacidad en la primera fr
   const [r] = await ejecutar('construir_variables.js', [{ json: fx('contexto_ok.json') }]);
   const s = r.json.respuesta.call_inbound.dynamic_variables.saludo_inicial;
   assert.match(s, /^Hola, soy Álex, asistente virtual con inteligencia artificial de Peluquería Demo\./);
-  assert.match(s, /privacidad/);
+  assert.match(s, /gestionar tu cita; puedes pedirnos más información\./);   // sin web cargada: no promete una web
+  assert.ok(s.split(' ').length <= 30, 'el saludo es demasiado largo para una llamada');
+});
+await prueba('variables: con política de privacidad cargada, el saludo remite a la web', async () => {
+  const ctx = structuredClone(fx('contexto_ok.json')); ctx.url_privacidad = 'https://ejemplo.es/privacidad';
+  const [r] = await ejecutar('construir_variables.js', [{ json: ctx }]);
+  assert.match(r.json.respuesta.call_inbound.dynamic_variables.saludo_inicial, /más información en nuestra web\./);
 });
 await prueba('variables: calendario de 30 días, horario y catálogo con códigos', async () => {
   const [r] = await ejecutar('construir_variables.js', [{ json: fx('contexto_ok.json') }]);

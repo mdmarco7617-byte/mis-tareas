@@ -16,6 +16,7 @@ Opcionales: MODELO (por defecto gpt-4.1-mini), GUARDADO_DATOS (por defecto every
 """
 import json
 import os
+from datetime import datetime, timedelta
 import sys
 import urllib.request
 from pathlib import Path
@@ -28,6 +29,33 @@ def entorno(nombre, defecto=None, obligatorio=True):
     v = os.environ.get(nombre, defecto)
     if obligatorio and not v:
         sys.exit(f'Falta la variable de entorno {nombre}')
+    return v
+
+
+DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+         'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def fecha_larga(d):
+    return f'{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]} de {d.year}'
+
+
+def variables_prueba_de_hoy():
+    """Variables de la peluquería demo con la fecha de HOY (la del ordenador).
+    El archivo guarda los datos del negocio; la fecha y el calendario se recalculan cada vez,
+    para que "mañana" sea siempre mañana. (En llamadas reales las calcula el flujo 01 en cada llamada.)"""
+    v = json.loads((AQUI / 'variables_prueba_web.json').read_text(encoding='utf-8'))
+    ahora = datetime.now()
+    hoy = ahora.date()
+    v['fecha_hoy'] = f'{fecha_larga(hoy)}, son las {ahora:%H:%M}'
+    v['fecha_hoy_iso'] = hoy.isoformat()
+    lineas = []
+    for i in range(30):
+        d = hoy + timedelta(days=i)
+        prefijo = 'hoy, ' if i == 0 else 'mañana, ' if i == 1 else ''
+        lineas.append(f'{prefijo}{fecha_larga(d)} = {d.isoformat()}')
+    v['calendario'] = '\n'.join(lineas)
     return v
 
 
@@ -94,9 +122,11 @@ def main():
         # Retell usa estas variables solo si la llamada no trae las suyas (p. ej. en las pruebas del panel).
         # En llamadas reales las pone el flujo 01; aun así hay que QUITARLAS antes de atender clientes,
         # para que un fallo del flujo 01 nunca haga que el agente hable con datos de la peluquería demo.
-        variables = json.loads((AQUI / 'variables_prueba_web.json').read_text(encoding='utf-8')) if cargar else {}
+        variables = variables_prueba_de_hoy() if cargar else {}
         llamar('PATCH', f'/update-retell-llm/{llm_id}', {'default_dynamic_variables': variables})
         print(f'Variables de prueba {"cargadas" if cargar else "quitadas"} en el LLM {llm_id}.')
+        if cargar:
+            print(f'Fecha usada: hoy es {variables["fecha_hoy_iso"]}. Si pruebas otro día, vuelve a ejecutar este comando.')
         return
 
     if '--actualizar-llm' in args:

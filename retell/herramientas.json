@@ -8,7 +8,7 @@
     "headers": {"x-herramienta": "check_availability", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras miras la agenda, por ejemplo: un momento, que lo miro.",
+    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame ver', 'lo miro ahora'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -32,7 +32,7 @@
     "headers": {"x-herramienta": "get_available_slots", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras miras la agenda.",
+    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame ver', 'lo miro ahora'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -57,7 +57,7 @@
     "headers": {"x-herramienta": "create_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras reservas, por ejemplo: perfecto, te la reservo.",
+    "execution_message_description": "Di solo una de estas, sin repetir datos: 'perfecto, te la reservo' o 'un momento, la reservo'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -85,7 +85,7 @@
     "headers": {"x-herramienta": "find_appointments", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras buscas.",
+    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame buscar'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -106,7 +106,7 @@
     "headers": {"x-herramienta": "cancel_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras la anulas.",
+    "execution_message_description": "Di solo: 'un momento, la anulo'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -127,7 +127,7 @@
     "headers": {"x-herramienta": "reschedule_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
     "speak_during_execution": true,
-    "execution_message_description": "Una frase muy corta mientras la cambias.",
+    "execution_message_description": "Di solo: 'un momento, la cambio'.",
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
