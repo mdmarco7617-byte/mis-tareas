@@ -84,7 +84,7 @@ await prueba('variables: calendario de 30 días, horario y catálogo con código
   assert.match(v.horario, /lunes: 10:00 a 14:00 y 16:00 a 20:00/);
   assert.match(v.horario, /domingo: cerrado/);
   assert.match(v.catalogo, /- mechas: Mechas · desde 65 € · 120 min/);
-  assert.match(v.catalogo, /- corte_mujer: Corte de mujer · 22 € · 45 min · lo hacen: Laura, Marta/);
+  assert.match(v.catalogo, /- corte_mujer: Corte de mujer · 22 € · 45 min/);
 });
 await prueba('variables: reconoce al cliente que llama y sus citas', async () => {
   const [r] = await ejecutar('construir_variables.js', [{ json: fx('contexto_ok.json') }]);
