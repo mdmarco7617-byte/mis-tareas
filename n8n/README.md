@@ -42,7 +42,7 @@ Crea estas (los nombres exactos ayudan a que n8n las asocie solas al importar). 
 
 ### 3. Importar
 1. En n8n: *Create workflow → ⋯ → Import from file*, uno a uno, **en este orden**: 05, 04, 06, 01, 02, 03 (así los subflujos existen cuando importas los que los llaman).
-2. En cada nodo con credencial en rojo, elige la credencial correspondiente.
+2. En cada nodo con credencial, **elige tú la credencial correspondiente, aunque ya aparezca una puesta**. Al importar, n8n puede enlazar solo cualquier credencial existente del mismo tipo (por ejemplo, otra *Header Auth* del chatbot) y enviarle a Supabase una clave que no es. Nodos a revisar: `Supabase · …` en los flujos 01, 02, 03 y 06 (credencial `Supabase · Verantia Voz`); `Enviar WhatsApp`, `Enviar SMS` y `Enviar email` en el 04; `Enviar WhatsApp a Verantia` y `Email de respaldo a Verantia` en el 05.
 3. En los nodos **"Avisar a Verantia"** y **"Enviar notificaciones"**, elige el flujo `VOZ · 05 Alertas Verantia` / `VOZ · 04 Notificaciones` en la lista.
 4. En `VOZ · 04` y `VOZ · 05`, abre el nodo **Configuración**:
    - **Interruptores** `WHATSAPP_ACTIVO`, `SMS_ACTIVO`, `EMAIL_ACTIVO` (`sí`/`no`). Vienen en `no`: un canal sin configurar no se usa ni genera alertas. Las confirmaciones se activan al final del proyecto.
