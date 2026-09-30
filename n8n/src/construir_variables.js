@@ -69,7 +69,7 @@ const catalogo = (r.servicios || []).map((s) => {
   (s.profesionales || []).forEach((p) => profesionales.add(p));
   const precio = s.precio === null || s.precio === undefined ? 'precio a consultar'
     : `${s.precio_desde ? 'desde ' : ''}${euros(s.precio)}`;
-  const con = (s.profesionales || []).length ? ` · lo hacen: ${s.profesionales.join(', ')}` : '';
+  const con = '';
   const desc = s.descripcion ? ` · ${s.descripcion}` : '';
   return `- ${s.codigo}: ${s.nombre} · ${precio} · ${s.duracion_min} min${con}${desc}`;
 }).join('\n');

@@ -7,8 +7,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "check_availability", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame ver', 'lo miro ahora'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -31,8 +30,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "get_available_slots", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame ver', 'lo miro ahora'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -56,8 +54,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "create_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo una de estas, sin repetir datos: 'perfecto, te la reservo' o 'un momento, la reservo'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -84,8 +81,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "find_appointments", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo una de estas, sin repetir datos: 'un momento', 'déjame buscar'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -105,8 +101,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "cancel_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo: 'un momento, la anulo'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
@@ -126,8 +121,7 @@
     "method": "POST",
     "headers": {"x-herramienta": "reschedule_appointment", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
     "args_at_root": true,
-    "speak_during_execution": true,
-    "execution_message_description": "Di solo: 'un momento, la cambio'.",
+    "speak_during_execution": false,
     "speak_after_execution": true,
     "timeout_ms": 8000,
     "parameters": {
