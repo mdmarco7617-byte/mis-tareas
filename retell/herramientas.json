@@ -140,7 +140,7 @@
   {
     "type": "custom",
     "name": "escalate_to_human",
-    "description": "Registra que el cliente necesita al equipo y avisa al negocio. Indica si ahora se puede transferir la llamada.",
+    "description": "Registra que el cliente necesita al equipo y avisa al negocio. Úsala SOLO si el cliente ha pedido hablar con una persona o ha aceptado que le pases con el equipo (o tras un error técnico repetido). NUNCA por una queja, un insulto o enfado sin que lo haya aceptado. Indica si ahora se puede transferir la llamada.",
     "url": "{{N8N_URL}}/webhook/verantia-voz/herramientas",
     "method": "POST",
     "headers": {"x-herramienta": "escalate_to_human", "x-numero-negocio": "{{numero_negocio}}", "x-numero-llamante": "{{numero_llamante}}", "x-id-llamada": "{{id_llamada}}"},
