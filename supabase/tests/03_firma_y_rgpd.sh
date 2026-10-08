@@ -38,6 +38,7 @@ R=$(sql "select fn_voz_inbound(:'raw', :'sig')->>'codigo'" "$DESC" "$(firmar "$D
 echo "── herramientas (custom functions)"
 FULL="{\"name\":\"check_availability\",\"call\":{\"call_id\":\"c-firma-2\",\"from_number\":\"+34600777001\",\"to_number\":\"+34983000001\",\"transcript\":\"texto\"},\"args\":{\"servicio\":\"corte_mujer\",\"fecha\":\"$LUNES\",\"hora\":\"10:00\"}}"
 R=$(sql "select fn_voz_tool(:'raw', :'sig')#>>'{agente,codigo}'" "$FULL" "$(firmar "$FULL")");  ok "formato completo → DISPONIBLE" "$R" "DISPONIBLE"
+R=$(sql "select fn_voz_tool(:'raw', :'sig')#>>'{agente,hoy}' ~ ', son las [0-9]{2}:[0-9]{2} \\([0-9]{4}-[0-9]{2}-[0-9]{2}\\)$'" "$FULL" "$(firmar "$FULL")"); ok "la respuesta trae la fecha real del negocio (hoy)" "$R" "t"
 R=$(sql "select (fn_voz_tool(:'raw', :'sig')->'notificacion') is null or (fn_voz_tool(:'raw', :'sig')->>'notificacion') is null" "$FULL" "$(firmar "$FULL")"); ok "consulta de disponibilidad no genera notificación" "$R" "t"
 
 ARGS="{\"servicio\":\"corte_mujer\",\"fecha\":\"$LUNES\",\"hora\":\"11:00\",\"nombre\":\"Nuria Prueba\",\"email\":\"nuria@example.com\"}"

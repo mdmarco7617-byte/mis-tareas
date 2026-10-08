@@ -19,6 +19,7 @@ Reglas que no se negocian:
 2. **El teléfono del cliente de confianza es `call.from_number`**. El argumento `telefono` del LLM solo se usa si el número llega oculto o el cliente pide otro.
 3. **La hora de fin la calcula el backend** a partir de la duración del servicio. El LLM solo manda fecha y hora de inicio. (En el chatbot actual el LLM calculaba `hora_fin`: fuente de errores, se elimina.)
 4. Toda respuesta lleva `codigo` (para la lógica del prompt) y `mensaje` (pista en castellano de qué decir). **Nunca** devuelve un error técnico crudo: ante cualquier fallo, `ERROR_TECNICO`.
+5. Toda respuesta que llega al agente lleva además `hoy` (fecha y hora reales en la zona del negocio, p. ej. `"jueves 8 de octubre de 2026, son las 18:35 (2026-10-08)"`). El prompt manda fiarse de ella si no coincide con la del agente (migración 009).
 5. Firma: n8n verifica la cabecera `x-retell-signature` (HMAC con la API key de Retell) antes de hacer nada.
 
 ## 2. Payload que llega a n8n (custom function de Retell)

@@ -16,7 +16,6 @@ Opcionales: MODELO (por defecto gpt-4.1-mini), GUARDADO_DATOS (por defecto every
 """
 import json
 import os
-from datetime import datetime, timedelta
 import sys
 import urllib.request
 from pathlib import Path
@@ -32,30 +31,15 @@ def entorno(nombre, defecto=None, obligatorio=True):
     return v
 
 
-DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
-MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
-         'septiembre', 'octubre', 'noviembre', 'diciembre']
-
-
-def fecha_larga(d):
-    return f'{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]} de {d.year}'
-
-
 def variables_prueba_de_hoy():
-    """Variables de la peluquería demo con la fecha de HOY (la del ordenador).
-    El archivo guarda los datos del negocio; la fecha y el calendario se recalculan cada vez,
-    para que "mañana" sea siempre mañana. (En llamadas reales las calcula el flujo 01 en cada llamada.)"""
+    """Variables de la peluquería demo para las pruebas del panel.
+    La fecha y el calendario se dejan VACÍOS a propósito: así el prompt usa las variables de sistema
+    de Retell ({{current_time_Europe/Madrid}}), que siempre dan la fecha real, y nunca se quedan
+    viejas aunque no vuelvas a ejecutar este comando. (En llamadas reales las calcula el flujo 01.)"""
     v = json.loads((AQUI / 'variables_prueba_web.json').read_text(encoding='utf-8'))
-    ahora = datetime.now()
-    hoy = ahora.date()
-    v['fecha_hoy'] = f'{fecha_larga(hoy)}, son las {ahora:%H:%M}'
-    v['fecha_hoy_iso'] = hoy.isoformat()
-    lineas = []
-    for i in range(30):
-        d = hoy + timedelta(days=i)
-        prefijo = 'hoy, ' if i == 0 else 'mañana, ' if i == 1 else ''
-        lineas.append(f'{prefijo}{fecha_larga(d)} = {d.isoformat()}')
-    v['calendario'] = '\n'.join(lineas)
+    v['fecha_hoy'] = ''
+    v['fecha_hoy_iso'] = ''
+    v['calendario'] = ''
     return v
 
 
@@ -81,9 +65,8 @@ def cuerpo_agente(llm_id, n8n_url):
         'webhook_events': ['call_analyzed'],
         # RGPD: por defecto Retell lo guarda TODO (incluida la grabación). Aquí, sin datos personales.
         'data_storage_setting': entorno('GUARDADO_DATOS', 'everything_except_pii'),
-        'interruption_sensitivity': 0.8,
-        'responsiveness': 0.9,
-        'enable_backchannel': True,
+        'interruption_sensitivity': 0.6,              # aguanta ruidos y "mm" sin cortarse
+        'enable_backchannel': False,                  # los "ajá" sueltos suenan a golpes en castellano
         'max_call_duration_ms': 600000,               # 10 min: evita llamadas colgadas y costes
         'end_call_after_silence_ms': 30000,
         'boosted_keywords': ['cita', 'reserva', 'anular', 'cambiar', 'mechas', 'balayage', 'tinte',
@@ -126,7 +109,7 @@ def main():
         llamar('PATCH', f'/update-retell-llm/{llm_id}', {'default_dynamic_variables': variables})
         print(f'Variables de prueba {"cargadas" if cargar else "quitadas"} en el LLM {llm_id}.')
         if cargar:
-            print(f'Fecha usada: hoy es {variables["fecha_hoy_iso"]}. Si pruebas otro día, vuelve a ejecutar este comando.')
+            print('La fecha la pone Retell en cada prueba (no hace falta repetir este comando cada día).')
         return
 
     if '--actualizar-llm' in args:
